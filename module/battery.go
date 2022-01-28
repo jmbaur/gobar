@@ -18,6 +18,7 @@ func (b Battery) String() string {
 		log.Println(err)
 		return "ERR"
 	}
+	defer f.Close()
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
 		log.Println(err)
