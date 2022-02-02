@@ -13,22 +13,32 @@ type Battery struct {
 	Name string
 }
 
+func (b Battery) getFileContents(fileName string) (string, error) {
+	f, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/%s", b.Name, fileName))
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s", bytes.Trim(data, "\n")), nil
+}
+
 func (b Battery) Interval() time.Duration {
 	return 30 * time.Second
 }
 
 func (b Battery) String() string {
 	defer log.Println("Updated battery module")
-	f, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity", b.Name))
-	if err != nil {
-		log.Println(err)
-		return fmt.Sprintf("%s: %s", b.Name, err)
+	capacity, capacityErr := b.getFileContents("capacity")
+	if capacityErr != nil {
+		capacityLevel, capacityLevelErr := b.getFileContents("capacity_level")
+		if capacityLevelErr != nil {
+			return fmt.Sprintf("%s: n/a", b.Name)
+		}
+		return fmt.Sprintf("%s: %s", b.Name, capacityLevel)
 	}
-	defer f.Close()
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		log.Println(err)
-		return fmt.Sprintf("%s: %s", b.Name, err)
-	}
-	return fmt.Sprintf("%s: %s%%", b.Name, bytes.Trim(data, "\n"))
+	return fmt.Sprintf("%s: %s%%", b.Name, capacity)
 }
