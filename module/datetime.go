@@ -1,12 +1,19 @@
 package module
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 type Datetime struct {
 	Format string
 }
 
+func (d Datetime) Interval() time.Duration {
+	return 1 * time.Second
+}
+
 func (d Datetime) String() string {
-	t := time.Now()
-	return t.Format(d.Format)
+	log.Println("Updated datetime module")
+	return time.Now().Format(d.Format)
 }
