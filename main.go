@@ -12,7 +12,7 @@ func main() {
 
 	battery0 := module.Battery{Name: "BAT0"}
 	battery1 := module.Battery{Name: "BAT1"}
-	datetime := module.Datetime{Format: time.RFC822}
+	datetime := module.Datetime{Format: time.RFC1123Z}
 
 	module.Run("|", battery0, battery1, datetime)
 }
