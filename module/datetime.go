@@ -7,6 +7,7 @@ import (
 
 type Datetime struct {
 	Format string
+	Log    *log.Logger
 }
 
 func (d Datetime) Interval() time.Duration {
@@ -14,6 +15,6 @@ func (d Datetime) Interval() time.Duration {
 }
 
 func (d Datetime) String() string {
-	defer log.Println("Updated datetime module")
+	defer d.Log.Println("Updated datetime module")
 	return time.Now().Format(d.Format)
 }

@@ -9,6 +9,7 @@ import (
 
 type Network struct {
 	Interface string
+	Log       *log.Logger
 }
 
 func (n Network) Interval() time.Duration {
@@ -16,7 +17,7 @@ func (n Network) Interval() time.Duration {
 }
 
 func (n Network) String() string {
-	defer log.Println("Updated network module")
+	defer n.Log.Println("Updated network module")
 	iface, err := net.InterfaceByName(n.Interface)
 	if err != nil {
 		log.Println(err)
@@ -37,7 +38,6 @@ func (n Network) String() string {
 		case *net.IPAddr:
 			ip = v.IP
 		}
-		log.Println(addr, ip)
 		if ip.IsPrivate() || ip.IsGlobalUnicast() {
 			switch len(ip) {
 			case net.IPv4len:

@@ -11,6 +11,7 @@ import (
 
 type Battery struct {
 	Name string
+	Log  *log.Logger
 }
 
 func (b Battery) getFileContents(fileName string) (string, error) {
@@ -31,7 +32,7 @@ func (b Battery) Interval() time.Duration {
 }
 
 func (b Battery) String() string {
-	defer log.Println("Updated battery module")
+	defer b.Log.Println("Updated battery module")
 	capacity, capacityErr := b.getFileContents("capacity")
 	if capacityErr != nil {
 		capacityLevel, capacityLevelErr := b.getFileContents("capacity_level")
