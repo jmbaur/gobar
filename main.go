@@ -12,7 +12,6 @@ import (
 
 func main() {
 	debug := flag.Bool("debug", false, "Enable debug mode")
-	// configFilePath := flag.String("config", "", "Path to config file")
 	flag.Parse()
 
 	var logger *log.Logger

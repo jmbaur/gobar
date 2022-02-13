@@ -3,8 +3,10 @@ package module
 import (
 	"fmt"
 	"log"
-	"net"
 	"time"
+
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 type Network struct {
@@ -18,35 +20,43 @@ func (n Network) Interval() time.Duration {
 
 func (n Network) String() string {
 	defer n.Log.Println("Updated network module")
-	iface, err := net.InterfaceByName(n.Interface)
+
+	var ipv4, ipv6 string
+
+	link, err := netlink.LinkByName(n.Interface)
 	if err != nil {
-		log.Println(err)
+		n.Log.Println(err)
 		return fmt.Sprintf("%s: %s", n.Interface, err)
 	}
-	addrs, err := iface.Addrs()
+	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
-		log.Println(err)
+		n.Log.Println(err)
 		return fmt.Sprintf("%s: %s", n.Interface, err)
 	}
-	ipv4 := ""
-	ipv6 := ""
-	for _, addr := range addrs {
-		var ip net.IP
-		switch v := addr.(type) {
-		case *net.IPNet:
-			ip = v.IP
-		case *net.IPAddr:
-			ip = v.IP
+	for _, a := range v4addrs {
+		if a.Flags&unix.IFA_F_MANAGETEMPADDR > 0 {
+			continue
 		}
-		if ip.IsPrivate() || ip.IsGlobalUnicast() {
-			switch len(ip) {
-			case net.IPv4len:
-				ipv4 = ip.String()
-			case net.IPv6len:
-				ipv6 = ip.String()
+		if a.IP.IsGlobalUnicast() && a.IP.IsPrivate() {
+			ipv4 = a.IPNet.String()
+		}
+	}
+	v6addrs, err := netlink.AddrList(link, unix.AF_INET6)
+	if err != nil {
+		n.Log.Println(err)
+		return fmt.Sprintf("%s: %s", n.Interface, err)
+	}
+	for _, a := range v6addrs {
+		if a.Flags&unix.IFA_F_MANAGETEMPADDR > 0 {
+			continue
+		}
+		if a.Flags&unix.IFA_F_TEMPORARY > 0 || a.Flags&unix.IFA_F_PERMANENT > 0 {
+			if a.IP.IsGlobalUnicast() || a.IP.IsPrivate() {
+				ipv6 = a.IPNet.String()
 			}
 		}
 	}
+	n.Log.Println(ipv4, ipv6)
 	if ipv4 != "" && ipv6 != "" {
 		return fmt.Sprintf("%s: %s %s", n.Interface, ipv4, ipv6)
 	}
