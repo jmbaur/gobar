@@ -14,6 +14,16 @@ type Network struct {
 	Interface string
 }
 
+func (n Network) sendError(c chan Update, err error, position int) {
+	c <- Update{
+		Block: i3.Block{
+			FullText: fmt.Sprintf("%s: %s", n.Interface, err),
+			Color:    color.Red,
+		},
+		Position: position,
+	}
+}
+
 func (n Network) Run(c chan Update, position int) {
 	updates := make(chan netlink.AddrUpdate)
 	done := make(chan struct{})
@@ -22,13 +32,13 @@ func (n Network) Run(c chan Update, position int) {
 	}()
 
 	if err := netlink.AddrSubscribe(updates, done); err != nil {
-		log.Println(err)
+		n.sendError(c, err, position)
 		return
 	}
 
 	link, err := netlink.LinkByName(n.Interface)
 	if err != nil {
-		log.Println(err)
+		n.sendError(c, err, position)
 		return
 	}
 
@@ -37,7 +47,7 @@ func (n Network) Run(c chan Update, position int) {
 
 	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
-		log.Println(err)
+		n.sendError(c, err, position)
 		return
 	}
 	for _, a := range v4addrs {
@@ -50,7 +60,7 @@ func (n Network) Run(c chan Update, position int) {
 	}
 	v6addrs, err := netlink.AddrList(link, unix.AF_INET6)
 	if err != nil {
-		log.Println(err)
+		n.sendError(c, err, position)
 		return
 	}
 	for _, a := range v6addrs {

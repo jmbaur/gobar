@@ -30,13 +30,23 @@ func getFileContents(f *os.File) (string, error) {
 func (b Battery) Run(c chan Update, position int) {
 	capacityFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity", b.Name))
 	if err != nil {
-		log.Println(err)
+		c <- Update{
+			Block: i3.Block{
+				FullText: fmt.Sprintf("%s: %s", b.Name, err),
+			},
+			Position: position,
+		}
 		return
 	}
 
 	epfd, err := unix.EpollCreate(5)
 	if err != nil {
-		log.Println(err)
+		c <- Update{
+			Block: i3.Block{
+				FullText: fmt.Sprintf("%s: %s", b.Name, err),
+			},
+			Position: position,
+		}
 		return
 	}
 
