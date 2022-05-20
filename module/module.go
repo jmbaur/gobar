@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -33,7 +32,7 @@ func (s StatusLine) String() string {
 	return line
 }
 
-func Run(l *log.Logger, sep string, modules ...Module) {
+func Run(sep string, modules ...Module) {
 	updater := make(chan Update)
 
 	statusLine := StatusLine{Separator: "|"}

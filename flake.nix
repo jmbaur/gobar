@@ -7,7 +7,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }@inputs: {
-    overlay = final: prev: {
+    overlays.default = final: prev: {
       gobar = prev.buildGo118Module {
         pname = "gobar";
         version = "0.1.0";
@@ -18,7 +18,7 @@
     };
   } // flake-utils.lib.eachDefaultSystem (system:
     let
-      pkgs = import nixpkgs { overlays = [ self.overlay ]; inherit system; };
+      pkgs = import nixpkgs { overlays = [ self.overlays.default ]; inherit system; };
     in
     rec {
       devShells.default = pkgs.mkShell {

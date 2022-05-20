@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/vishvananda/netlink"
@@ -11,7 +10,6 @@ import (
 
 type Network struct {
 	Interface string
-	Log       *log.Logger
 }
 
 func (n Network) Interval() time.Duration {
@@ -19,18 +17,14 @@ func (n Network) Interval() time.Duration {
 }
 
 func (n Network) String() string {
-	defer n.Log.Println("Updated network module")
-
 	var ipv4, ipv6 string
 
 	link, err := netlink.LinkByName(n.Interface)
 	if err != nil {
-		n.Log.Println(err)
 		return fmt.Sprintf("%s: %s", n.Interface, err)
 	}
 	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
-		n.Log.Println(err)
 		return fmt.Sprintf("%s: %s", n.Interface, err)
 	}
 	for _, a := range v4addrs {
@@ -43,7 +37,6 @@ func (n Network) String() string {
 	}
 	v6addrs, err := netlink.AddrList(link, unix.AF_INET6)
 	if err != nil {
-		n.Log.Println(err)
 		return fmt.Sprintf("%s: %s", n.Interface, err)
 	}
 	for _, a := range v6addrs {
@@ -56,7 +49,6 @@ func (n Network) String() string {
 			}
 		}
 	}
-	n.Log.Println(ipv4, ipv6)
 	if ipv4 != "" && ipv6 != "" {
 		return fmt.Sprintf("%s: %s %s", n.Interface, ipv4, ipv6)
 	}
