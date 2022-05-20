@@ -2,18 +2,18 @@
   description = "gobar";
 
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-21.11";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = { self, nixpkgs, flake-utils }@inputs: {
     overlay = final: prev: {
-      gobar = nixpkgs.legacyPackages.${prev.system}.buildGo117Module {
+      gobar = prev.buildGo118Module {
         pname = "gobar";
         version = "0.1.0";
         CGO_ENABLED = 0;
         src = builtins.path { path = ./.; };
-        vendorSha256 = "sha256-uIEzIHU/wfjw3hmaFc0DnfHMvHleLVbYYVXefY117i0=";
+        vendorSha256 = "sha256-ulJNWhEqMz2V21vf910DMADCf1UxKIcnZsX51+eYLXo=";
       };
     };
   } // flake-utils.lib.eachDefaultSystem (system:
@@ -21,10 +21,10 @@
       pkgs = import nixpkgs { overlays = [ self.overlay ]; inherit system; };
     in
     rec {
-      devShell = pkgs.mkShell { buildInputs = with pkgs; [ go_1_17 entr ]; };
-      packages.gobar = pkgs.gobar;
-      defaultPackage = packages.gobar;
-      apps.gobar = flake-utils.lib.mkApp { drv = pkgs.gobar; name = "gobar"; };
-      defaultApp = apps.gobar;
+      devShells.default = pkgs.mkShell {
+        buildInputs = with pkgs; [ go_1_18 entr ];
+      };
+      packages.default = pkgs.gobar;
+      apps.default = flake-utils.lib.mkApp { drv = pkgs.gobar; name = "gobar"; };
     });
 }
