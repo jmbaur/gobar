@@ -1,58 +1,50 @@
 package module
 
 import (
+	"encoding/json"
 	"fmt"
-	"time"
+
+	"github.com/jmbaur/gobar/i3"
 )
 
 type Update struct {
-	Content  string
+	Block    i3.Block
 	Position int
 }
 
 type Module interface {
-	String() string
-	Interval() time.Duration
+	Run(c chan Update, position int) error
 }
 
-type StatusLine struct {
-	Separator     string
-	moduleContent []string
-}
-
-func (s StatusLine) String() string {
-	line := ""
-	for i, content := range s.moduleContent {
-		if i == 0 {
-			line += fmt.Sprintf("%s", content)
-		} else {
-			line += fmt.Sprintf(" %s %s", s.Separator, content)
-		}
+func Run(modules ...Module) {
+	header := i3.Header{
+		Version: 1,
+		// StopSignal:  10,
+		// ContSignal:  12,
+		// ClickEvents: true,
 	}
-	return line
-}
+	if data, err := json.Marshal(header); err == nil {
+		fmt.Printf("%s\n", data)
+	}
 
-func Run(sep string, modules ...Module) {
-	updater := make(chan Update)
-
-	statusLine := StatusLine{Separator: "|"}
+	updates := make(chan Update)
+	blocks := make([]i3.Block, len(modules))
 
 	for i, m := range modules {
-		statusLine.moduleContent = append(statusLine.moduleContent, m.String())
-		go func(m Module, position int) {
-			t := time.NewTicker(m.Interval())
-			for {
-				_ = <-t.C
-				updater <- Update{
-					Content:  m.String(),
-					Position: position,
-				}
-			}
-		}(m, i)
+		go m.Run(updates, i)
 	}
 
-	for update := range updater {
-		statusLine.moduleContent[update.Position] = update.Content
-		fmt.Println(statusLine)
+	fmt.Printf("[\n")
+	for {
+		select {
+		case u := <-updates:
+			if u.Position > len(blocks)-1 {
+				continue
+			}
+			blocks[u.Position] = u.Block
+		}
+		if data, err := json.Marshal(blocks); err == nil {
+			fmt.Printf("%s\n", data)
+		}
 	}
 }
