@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/jmbaur/gobar/i3"
 	"github.com/vishvananda/netlink"
@@ -76,7 +75,6 @@ func (n Network) Run(c chan Update, position int) error {
 	}
 
 	for u := range updates {
-		log.Println(u)
 		if u.LinkIndex == link.Attrs().Index {
 			c <- Update{
 				Block: i3.Block{

@@ -1,15 +1,11 @@
 package main
 
 import (
-	"time"
+	"log"
 
-	"github.com/jmbaur/gobar/module"
+	"github.com/jmbaur/gobar/cmd"
 )
 
 func main() {
-	battery0 := module.Battery{Name: "BAT0"}
-	wifi := module.Network{Interface: "wlan0"}
-	datetime := module.Datetime{Format: time.RFC1123Z}
-
-	module.Run(battery0, wifi, datetime)
+	log.Fatal(cmd.Run())
 }
