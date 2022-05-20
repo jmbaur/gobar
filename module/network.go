@@ -13,7 +13,17 @@ type Network struct {
 	Interface string
 }
 
-func (n Network) Run(c chan Update, position int) error {
+func (n Network) sendError(c chan Update, err error, position int) {
+	c <- Update{
+		Block: i3.Block{
+			FullText: fmt.Sprintf("%s: %s", n.Interface, err),
+			Color:    color.Red,
+		},
+		Position: position,
+	}
+}
+
+func (n Network) Run(c chan Update, position int) {
 	updates := make(chan netlink.AddrUpdate)
 	done := make(chan struct{})
 	defer func() {
@@ -21,12 +31,14 @@ func (n Network) Run(c chan Update, position int) error {
 	}()
 
 	if err := netlink.AddrSubscribe(updates, done); err != nil {
-		return fmt.Errorf("failed to run network module: %v", err)
+		n.sendError(c, err, position)
+		return
 	}
 
 	link, err := netlink.LinkByName(n.Interface)
 	if err != nil {
-		return fmt.Errorf("failed to get link for %s: %v", n.Interface, err)
+		n.sendError(c, err, position)
+		return
 	}
 
 	var fullText, ipv4, ipv6 string
@@ -34,7 +46,8 @@ func (n Network) Run(c chan Update, position int) error {
 
 	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
-		return fmt.Errorf("failed to get address list for %s: %s", n.Interface, err)
+		n.sendError(c, err, position)
+		return
 	}
 	for _, a := range v4addrs {
 		if a.Flags&unix.IFA_F_MANAGETEMPADDR > 0 {
@@ -46,7 +59,8 @@ func (n Network) Run(c chan Update, position int) error {
 	}
 	v6addrs, err := netlink.AddrList(link, unix.AF_INET6)
 	if err != nil {
-		return fmt.Errorf("failed to get address list for %s: %v", n.Interface, err)
+		n.sendError(c, err, position)
+		return
 	}
 	for _, a := range v6addrs {
 		if a.Flags&unix.IFA_F_MANAGETEMPADDR > 0 {
@@ -90,6 +104,4 @@ func (n Network) Run(c chan Update, position int) error {
 			}
 		}
 	}
-
-	return nil
 }

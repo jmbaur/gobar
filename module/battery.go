@@ -26,16 +26,28 @@ func getFileContents(f *os.File) (string, error) {
 	return fmt.Sprintf("%s", bytes.Trim(data, "\n")), nil
 }
 
-func (b Battery) Run(c chan Update, position int) error {
+func (b Battery) Run(c chan Update, position int) {
 	capacityFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity", b.Name))
 	if err != nil {
-		return fmt.Errorf("failed to run battery module: %v", err)
+		c <- Update{
+			Block: i3.Block{
+				FullText: fmt.Sprintf("%s: %s", b.Name, err),
+			},
+			Position: position,
+		}
+		return
 	}
 	defer capacityFile.Close()
 
 	capacityLevelFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity_level", b.Name))
 	if err != nil {
-		return fmt.Errorf("failed to run battery module: %v", err)
+		c <- Update{
+			Block: i3.Block{
+				FullText: fmt.Sprintf("%s: %s", b.Name, err),
+			},
+			Position: position,
+		}
+		return
 	}
 	defer capacityLevelFile.Close()
 

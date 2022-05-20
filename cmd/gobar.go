@@ -8,20 +8,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func Run() error {
-	configFile := flag.String("config", "", "Path to gobar.yaml config file")
-	flag.Parse()
-
-	cfg, err := config.GetConfig(*configFile)
-	if err != nil {
-		return err
-	}
-
-	module.Run(decodeToModules(cfg)...)
-
-	return nil
-}
-
 func decodeToModules(cfg *config.Config) []module.Module {
 	modules := []module.Module{}
 
@@ -60,4 +46,16 @@ func decodeToModules(cfg *config.Config) []module.Module {
 	}
 
 	return modules
+}
+
+func Run() error {
+	configFile := flag.String("config", "", "Path to gobar.yaml config file")
+	flag.Parse()
+
+	cfg, err := config.GetConfig(*configFile)
+	if err != nil {
+		return err
+	}
+
+	return module.Run(decodeToModules(cfg)...)
 }
