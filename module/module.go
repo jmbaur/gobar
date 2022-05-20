@@ -44,7 +44,7 @@ func Run(modules ...Module) {
 			blocks[u.Position] = u.Block
 		}
 		if data, err := json.Marshal(blocks); err == nil {
-			fmt.Printf("%s\n,", data)
+			fmt.Printf("%s,\n", data)
 		}
 	}
 }
