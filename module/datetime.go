@@ -10,7 +10,7 @@ type Datetime struct {
 	Format string
 }
 
-func (d Datetime) Run(c chan Update, position int) error {
+func (d Datetime) Run(c chan Update, position int) {
 	for {
 		c <- Update{
 			Block: i3.Block{

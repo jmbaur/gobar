@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
+	"golang.org/x/sys/unix"
 )
 
 type Battery struct {
@@ -26,54 +27,73 @@ func getFileContents(f *os.File) (string, error) {
 	return fmt.Sprintf("%s", bytes.Trim(data, "\n")), nil
 }
 
-func (b Battery) Run(c chan Update, position int) error {
+func (b Battery) Run(c chan Update, position int) {
 	capacityFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity", b.Name))
 	if err != nil {
-		return fmt.Errorf("failed to run battery module: %v", err)
+		log.Println(err)
+		return
 	}
-	defer capacityFile.Close()
 
-	capacityLevelFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity_level", b.Name))
+	epfd, err := unix.EpollCreate(5)
 	if err != nil {
-		return fmt.Errorf("failed to run battery module: %v", err)
+		log.Println(err)
+		return
 	}
-	defer capacityLevelFile.Close()
+
+	events := make([]unix.EpollEvent, 1, 5)
+	events[0] = unix.EpollEvent{
+		Events: unix.EPOLLPRI, /* | unix.EPOLLHUP | unix.EPOLLERR */
+		Fd:     int32(capacityFile.Fd()),
+	}
+
+	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(capacityFile.Fd()), &events[0])
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	bs := make([]byte, 100, 100)
 
 	for {
-		var fullText string
 		col := color.Normal
-
-		if capacity, err := getFileContents(capacityFile); err != nil {
-			capacityLevel, capacityLevelErr := getFileContents(capacityLevelFile)
-			if capacityLevelErr != nil {
-				fullText = fmt.Sprintf("%s: n/a", b.Name)
-				col = color.Red
-			} else {
-				switch true {
-				case capacityLevel == "Full":
-					col = color.Green
-				}
-				fullText = fmt.Sprintf("%s: %s", b.Name, capacityLevel)
-			}
-		} else {
-			if capInt, err := strconv.Atoi(capacity); err != nil {
-			} else {
-				switch true {
-				case capInt > 80:
-					col = color.Green
-				case capInt < 20:
-					col = color.Red
-				}
-				fullText = fmt.Sprintf("%s: %s%%", b.Name, capacity)
-			}
+		log.Println("waiting")
+		n, err := unix.EpollWait(epfd, events, -1)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
+
+		for _, e := range events[:n] {
+			log.Printf("%+v\n", e)
+		}
+
+		r, err := capacityFile.Read(bs)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		// seek to beginning to relatch event
+		capacityFile.Seek(0, io.SeekStart)
+		capacity, err := strconv.Atoi(string(bytes.TrimSpace(bs[0:r])))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		switch true {
+		case capacity > 80:
+			col = color.Green
+		case capacity < 20:
+			col = color.Red
+		}
+
+		log.Println("updating battery")
 		c <- Update{
 			Block: i3.Block{
-				FullText: fullText,
+				FullText: fmt.Sprintf("%s: %d%%", b.Name, capacity),
 				Color:    col,
 			},
 			Position: position,
 		}
-		time.Sleep(30 * time.Second)
 	}
 }

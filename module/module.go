@@ -17,10 +17,10 @@ type Update struct {
 }
 
 type Module interface {
-	Run(c chan Update, position int) error
+	Run(c chan Update, position int)
 }
 
-func Run(modules ...Module) {
+func Run(modules ...Module) error {
 	header := i3.Header{
 		Version:     1,
 		StopSignal:  syscall.SIGSTOP,
@@ -34,17 +34,19 @@ func Run(modules ...Module) {
 	done := make(chan struct{}, 1)
 	signals := make(chan os.Signal)
 	updates := make(chan Update)
-	signal.Notify(signals /* , syscall.SIGSTOP, syscall.SIGCONT */)
+	signal.Notify(signals)
 
 	go func() {
-		sig := <-signals
-		switch sig {
-		case syscall.SIGCONT:
-			log.Println("continue")
-		case syscall.SIGSTOP:
-			log.Println("stop")
-		case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
-			done <- struct{}{}
+		for {
+			sig := <-signals
+			switch sig {
+			case syscall.SIGCONT:
+				log.Println("continue")
+			case syscall.SIGSTOP:
+				log.Println("stop")
+			case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
+				done <- struct{}{}
+			}
 		}
 	}()
 
@@ -69,10 +71,12 @@ func Run(modules ...Module) {
 		if data, err := json.Marshal(blocks); err == nil {
 			if isDone {
 				fmt.Printf("%s\n]\n", data)
-				os.Exit(0)
+				break
 			} else {
 				fmt.Printf("%s,\n", data)
 			}
 		}
 	}
+
+	return nil
 }
