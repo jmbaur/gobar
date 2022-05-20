@@ -3,6 +3,7 @@ package module
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -15,6 +16,7 @@ type Battery struct {
 }
 
 func getFileContents(f *os.File) (string, error) {
+	defer f.Seek(0, io.SeekStart)
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
 		return "", err
@@ -41,8 +43,9 @@ func (b Battery) Run(c chan Update, position int) error {
 			capacityLevel, capacityLevelErr := getFileContents(capacityLevelFile)
 			if capacityLevelErr != nil {
 				fullText = fmt.Sprintf("%s: n/a", b.Name)
+			} else {
+				fullText = fmt.Sprintf("%s: %s", b.Name, capacityLevel)
 			}
-			fullText = fmt.Sprintf("%s: %s", b.Name, capacityLevel)
 		} else {
 			fullText = fmt.Sprintf("%s: %s%%", b.Name, capacity)
 		}
