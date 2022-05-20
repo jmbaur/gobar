@@ -6,8 +6,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
 )
 
@@ -39,19 +41,36 @@ func (b Battery) Run(c chan Update, position int) error {
 
 	for {
 		var fullText string
+		col := color.Normal
+
 		if capacity, err := getFileContents(capacityFile); err != nil {
 			capacityLevel, capacityLevelErr := getFileContents(capacityLevelFile)
 			if capacityLevelErr != nil {
 				fullText = fmt.Sprintf("%s: n/a", b.Name)
+				col = color.Red
 			} else {
+				switch true {
+				case capacityLevel == "Full":
+					col = color.Green
+				}
 				fullText = fmt.Sprintf("%s: %s", b.Name, capacityLevel)
 			}
 		} else {
-			fullText = fmt.Sprintf("%s: %s%%", b.Name, capacity)
+			if capInt, err := strconv.Atoi(capacity); err != nil {
+			} else {
+				switch true {
+				case capInt > 80:
+					col = color.Green
+				case capInt < 20:
+					col = color.Red
+				}
+				fullText = fmt.Sprintf("%s: %s%%", b.Name, capacity)
+			}
 		}
 		c <- Update{
 			Block: i3.Block{
 				FullText: fullText,
+				Color:    col,
 			},
 			Position: position,
 		}

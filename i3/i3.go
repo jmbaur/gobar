@@ -1,10 +1,12 @@
 package i3
 
+import "syscall"
+
 type Header struct {
-	Version     int  `json:"version"`
-	StopSignal  int  `json:"stop_signal,omitempty"`
-	ContSignal  int  `json:"cont_signal,omitempty"`
-	ClickEvents bool `json:"click_events,omitempty"`
+	Version     int            `json:"version"`
+	StopSignal  syscall.Signal `json:"stop_signal,omitempty"`
+	ContSignal  syscall.Signal `json:"cont_signal,omitempty"`
+	ClickEvents bool           `json:"click_events,omitempty"`
 }
 
 type Block struct {
