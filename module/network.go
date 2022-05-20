@@ -3,6 +3,7 @@ package module
 import (
 	"fmt"
 
+	"github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -29,6 +30,7 @@ func (n Network) Run(c chan Update, position int) error {
 	}
 
 	var fullText, ipv4, ipv6 string
+	col := color.Normal
 
 	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
@@ -60,16 +62,21 @@ func (n Network) Run(c chan Update, position int) error {
 	switch true {
 	case ipv4 != "" && ipv6 != "":
 		fullText = fmt.Sprintf("%s: %s %s", n.Interface, ipv4, ipv6)
+		col = color.Green
 	case ipv4 != "" && ipv6 == "":
 		fullText = fmt.Sprintf("%s: %s", n.Interface, ipv4)
+		col = color.Green
 	case ipv4 == "" && ipv6 != "":
 		fullText = fmt.Sprintf("%s: %s", n.Interface, ipv6)
+		col = color.Green
 	default:
 		fullText = fmt.Sprintf("%s: n/a", n.Interface)
+		col = color.Red
 	}
 	c <- Update{
 		Block: i3.Block{
 			FullText: fullText,
+			Color:    col,
 		},
 		Position: position,
 	}
