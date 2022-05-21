@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
