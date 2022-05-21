@@ -12,37 +12,32 @@ func decodeToModules(cfg *config.Config) []module.Module {
 	modules := []module.Module{}
 
 	for _, m := range cfg.Modules {
-		casted, ok := m.(map[interface{}]interface{})
+		maybeMod, ok := m.(map[any]any)
 		if !ok {
 			continue
 		}
 
-		moduleType, ok := casted["module"]
+		name, ok := maybeMod["module"].(string)
 		if !ok {
 			continue
 		}
 
-		// TODO(jared): use generics
-		switch moduleType {
+		var mod module.Module
+		switch name {
 		case "network":
-			var mod module.Network
-			if err := mapstructure.Decode(m, &mod); err != nil {
-				continue
-			}
-			modules = append(modules, mod)
+			mod = module.Network{}
 		case "datetime":
-			var mod module.Datetime
-			if err := mapstructure.Decode(m, &mod); err != nil {
-				continue
-			}
-			modules = append(modules, mod)
+			mod = module.Datetime{}
 		case "battery":
-			var mod module.Battery
-			if err := mapstructure.Decode(m, &mod); err != nil {
-				continue
-			}
-			modules = append(modules, mod)
+			mod = module.Battery{}
+		default:
+			continue
 		}
+
+		if err := mapstructure.Decode(m, &mod); err != nil {
+			continue
+		}
+		modules = append(modules, mod)
 	}
 
 	return modules

@@ -9,13 +9,13 @@ import (
 )
 
 type Config struct {
-	Modules []interface{} `yaml:"modules"`
+	Modules []any `yaml:"modules"`
 }
 
 func GetConfig(flagConfigFile string) (*Config, error) {
 	config := Config{
-		Modules: []interface{}{
-			map[interface{}]interface{}{
+		Modules: []any{
+			map[any]any{
 				"module": "datetime",
 				"format": time.RFC1123,
 			},
