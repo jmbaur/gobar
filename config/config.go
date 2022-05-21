@@ -1,10 +1,8 @@
 package config
 
 import (
-	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/go-yaml/yaml"
@@ -12,26 +10,6 @@ import (
 
 type Config struct {
 	Modules []interface{} `yaml:"modules"`
-}
-
-var ErrNoLookupLocation = errors.New("No config file lookup location")
-
-func getConfigFilePath(flagConfigFile string) (string, error) {
-	if flagConfigFile != "" {
-		return filepath.Join(flagConfigFile), nil
-	}
-
-	xdgConfigHome, ok := os.LookupEnv("XDG_CONFIG_HOME")
-	if ok {
-		return filepath.Join(xdgConfigHome, "gobar", "gobar.yaml"), nil
-	}
-
-	home, ok := os.LookupEnv("HOME")
-	if ok {
-		return filepath.Join(home, ".config", "gobar", "gobar.yaml"), nil
-	}
-
-	return "", ErrNoLookupLocation
 }
 
 func GetConfig(flagConfigFile string) (*Config, error) {
@@ -45,13 +23,16 @@ func GetConfig(flagConfigFile string) (*Config, error) {
 	}
 
 	path, err := getConfigFilePath(flagConfigFile)
+	if err == ErrNoLookupLocation {
+		return &config, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		return &config, nil
+		return nil, err
 	}
 	defer file.Close()
 
