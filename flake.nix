@@ -22,7 +22,7 @@
     in
     rec {
       devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs; [ go_1_18 entr ];
+        buildInputs = with pkgs; [ go_1_18 go-tools ];
       };
       packages.default = pkgs.gobar;
       apps.default = flake-utils.lib.mkApp { drv = pkgs.gobar; name = "gobar"; };

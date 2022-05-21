@@ -3,7 +3,6 @@ package module
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,18 +31,17 @@ func Run(modules ...Module) error {
 	}
 
 	done := make(chan struct{}, 1)
-	signals := make(chan os.Signal)
+	signals := make(chan os.Signal, 1)
 	updates := make(chan Update)
 	signal.Notify(signals)
+	signal.Ignore(syscall.SIGURG)
 
 	go func() {
 		for {
 			sig := <-signals
 			switch sig {
 			case syscall.SIGCONT:
-				log.Println("continue")
 			case syscall.SIGSTOP:
-				log.Println("stop")
 			case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
 				done <- struct{}{}
 			}
