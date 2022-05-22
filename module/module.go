@@ -45,6 +45,20 @@ func parseStdin(tx chan i3.ClickEvent) {
 	}
 }
 
+func handleSignals(signals chan os.Signal, done chan struct{}) {
+	for {
+		sig := <-signals
+		switch sig {
+		case syscall.SIGSTOP:
+			// TODO(jared): stop running modules
+		case syscall.SIGCONT:
+			// TODO(jared): continue stopped modules
+		case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
+			done <- struct{}{}
+		}
+	}
+}
+
 // Run is the entrypoint to running a list of modules.
 func Run(modules ...Module) error {
 	header := i3.Header{
@@ -69,19 +83,7 @@ func Run(modules ...Module) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals)
 
-	go func() {
-		for {
-			sig := <-signals
-			switch sig {
-			case syscall.SIGSTOP:
-				// TODO(jared): stop running modules
-			case syscall.SIGCONT:
-				// TODO(jared): continue stopped modules
-			case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
-				done <- struct{}{}
-			}
-		}
-	}()
+	go handleSignals(signals, done)
 
 	go parseStdin(events)
 
