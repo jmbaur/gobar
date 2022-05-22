@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -39,7 +38,6 @@ func (b Battery) sendError(err error, c chan Update, position int) {
 }
 
 func (b Battery) Run(c chan Update, position int) {
-	log.Println("battery", position)
 	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
 	if err != nil {
 		b.sendError(err, c, position)
