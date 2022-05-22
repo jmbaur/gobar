@@ -89,9 +89,9 @@ func (b *Battery) Run(c chan Update, position int) {
 		case "Discharging":
 			statusRune = '\u2193'
 		case "Not charging":
-			statusRune = '\u26aa'
+			statusRune = '\u26cb'
 		case "Full":
-			statusRune = '\u26ab'
+			statusRune = '\u25cf'
 		case "Unknown":
 			fallthrough
 		default:
