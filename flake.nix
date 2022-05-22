@@ -22,6 +22,7 @@
     in
     rec {
       devShells.default = pkgs.mkShell {
+        CGO_ENABLED = 0;
         buildInputs = with pkgs; [ go_1_18 go-tools ];
       };
       packages.default = pkgs.gobar;
