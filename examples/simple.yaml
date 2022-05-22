@@ -1,7 +1,7 @@
 ---
 modules:
   - module: "battery"
-    name: "BAT0"
+    index: 0 # BAT0
   - module: "network"
     interface: "wlan0"
   - module: "datetime"

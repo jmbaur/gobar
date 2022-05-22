@@ -33,15 +33,22 @@ func Run(modules ...Module) error {
 	done := make(chan struct{}, 1)
 	signals := make(chan os.Signal, 1)
 	updates := make(chan Update)
+	defer func() {
+		close(done)
+		close(signals)
+		close(updates)
+	}()
+
 	signal.Notify(signals)
-	signal.Ignore(syscall.SIGURG)
 
 	go func() {
 		for {
 			sig := <-signals
 			switch sig {
-			case syscall.SIGCONT:
 			case syscall.SIGSTOP:
+				// TODO(jared): stop running modules
+			case syscall.SIGCONT:
+				// TODO(jared): continue stopped modules
 			case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
 				done <- struct{}{}
 			}

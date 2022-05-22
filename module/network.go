@@ -2,6 +2,7 @@ package module
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
@@ -11,6 +12,8 @@ import (
 
 type Network struct {
 	Interface string
+	ipv4      net.IP
+	ipv6      net.IP
 }
 
 func (n Network) sendError(c chan Update, err error, position int) {
@@ -25,9 +28,11 @@ func (n Network) sendError(c chan Update, err error, position int) {
 
 func (n Network) Run(c chan Update, position int) {
 	updates := make(chan netlink.AddrUpdate)
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	defer func() {
 		done <- struct{}{}
+		close(updates)
+		close(done)
 	}()
 
 	if err := netlink.AddrSubscribe(updates, done); err != nil {
@@ -41,67 +46,81 @@ func (n Network) Run(c chan Update, position int) {
 		return
 	}
 
-	var fullText, ipv4, ipv6 string
-	col := color.Normal
+	col := color.Green
 
 	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
 		n.sendError(c, err, position)
 		return
 	}
-	for _, a := range v4addrs {
-		if a.Flags&unix.IFA_F_MANAGETEMPADDR > 0 {
-			continue
-		}
-		if a.IP.IsGlobalUnicast() && a.IP.IsPrivate() {
-			ipv4 = a.IPNet.String()
+	for _, addr := range v4addrs {
+		if chooseIPv4(addr.IP) {
+			n.ipv4 = addr.IP
 		}
 	}
+
 	v6addrs, err := netlink.AddrList(link, unix.AF_INET6)
 	if err != nil {
 		n.sendError(c, err, position)
 		return
 	}
-	for _, a := range v6addrs {
-		if a.Flags&unix.IFA_F_MANAGETEMPADDR > 0 {
-			continue
-		}
-		if a.Flags&unix.IFA_F_TEMPORARY > 0 || a.Flags&unix.IFA_F_PERMANENT > 0 {
-			if a.IP.IsGlobalUnicast() || a.IP.IsPrivate() {
-				ipv6 = a.IPNet.String()
-			}
+	for _, addr := range v6addrs {
+		if chooseIPv6(addr.IP, addr.Flags) {
+			n.ipv6 = addr.IP
 		}
 	}
 
-	switch true {
-	case ipv4 != "" && ipv6 != "":
-		fullText = fmt.Sprintf("%s: %s %s", n.Interface, ipv4, ipv6)
-		col = color.Green
-	case ipv4 != "" && ipv6 == "":
-		fullText = fmt.Sprintf("%s: %s", n.Interface, ipv4)
-		col = color.Green
-	case ipv4 == "" && ipv6 != "":
-		fullText = fmt.Sprintf("%s: %s", n.Interface, ipv6)
-		col = color.Green
-	default:
-		fullText = fmt.Sprintf("%s: n/a", n.Interface)
-		col = color.Red
-	}
-	c <- Update{
-		Block: i3.Block{
-			FullText: fullText,
-			Color:    col,
-		},
-		Position: position,
-	}
-
-	for u := range updates {
-		if u.LinkIndex == link.Attrs().Index {
-			c <- Update{
-				Block: i3.Block{
-					FullText: fmt.Sprintf("%s: %s", n.Interface, u.LinkAddress.IP),
-				},
+	var update netlink.AddrUpdate
+	hasUpdate := false
+	for {
+		if hasUpdate {
+			if update.NewAddr &&
+				update.LinkIndex == link.Attrs().Index {
+				if len(update.LinkAddress.IP) == net.IPv4len && chooseIPv4(update.LinkAddress.IP) {
+					n.ipv4 = update.LinkAddress.IP
+				} else if chooseIPv6(update.LinkAddress.IP, update.Flags) {
+					n.ipv6 = update.LinkAddress.IP
+				}
+			} else if !update.NewAddr {
+				if n.ipv4.Equal(update.LinkAddress.IP) {
+					n.ipv4 = nil
+				} else if n.ipv6.Equal(update.LinkAddress.IP) {
+					n.ipv6 = nil
+				}
 			}
 		}
+
+		var fullText string
+		switch true {
+		case !(n.ipv4 == nil) && !(n.ipv6 == nil):
+			fullText = fmt.Sprintf("%s: %s %s", n.Interface, n.ipv4, n.ipv6)
+		case !(n.ipv4 == nil) && n.ipv6 == nil:
+			fullText = fmt.Sprintf("%s: %s", n.Interface, n.ipv4)
+		case n.ipv4 == nil && !(n.ipv6 == nil):
+			fullText = fmt.Sprintf("%s: %s", n.Interface, n.ipv6)
+		default:
+			fullText = fmt.Sprintf("%s: n/a", n.Interface)
+			col = color.Red
+		}
+		c <- Update{
+			Block: i3.Block{
+				FullText: fullText,
+				Color:    col,
+			},
+			Position: position,
+		}
+		update = <-updates
+		hasUpdate = true
 	}
+}
+
+func chooseIPv4(ip net.IP) bool {
+	return ip.IsPrivate()
+}
+
+func chooseIPv6(ip net.IP, flags int) bool {
+	if flags&unix.IFA_F_MANAGETEMPADDR > 0 {
+		return false
+	}
+	return !ip.IsPrivate() && ip.IsGlobalUnicast()
 }

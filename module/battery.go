@@ -8,14 +8,15 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
-	"golang.org/x/sys/unix"
 )
 
 type Battery struct {
-	Name string
+	Index int
 }
 
 func getFileContents(f *os.File) (string, error) {
@@ -27,83 +28,62 @@ func getFileContents(f *os.File) (string, error) {
 	return fmt.Sprintf("%s", bytes.Trim(data, "\n")), nil
 }
 
+func (b Battery) sendError(err error, c chan Update, position int) {
+	c <- Update{
+		Block: i3.Block{
+			FullText: fmt.Sprintf("BAT%d: %s", b.Index, err),
+			Color:    color.Red,
+		},
+		Position: position,
+	}
+}
+
 func (b Battery) Run(c chan Update, position int) {
-	capacityFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity", b.Name))
+	log.Println("battery", position)
+	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
 	if err != nil {
-		c <- Update{
-			Block: i3.Block{
-				FullText: fmt.Sprintf("%s: %s", b.Name, err),
-			},
-			Position: position,
-		}
+		b.sendError(err, c, position)
 		return
 	}
+	defer fd.Close()
 
-	epfd, err := unix.EpollCreate(5)
-	if err != nil {
-		c <- Update{
-			Block: i3.Block{
-				FullText: fmt.Sprintf("%s: %s", b.Name, err),
-			},
-			Position: position,
-		}
-		return
-	}
-
-	events := make([]unix.EpollEvent, 1, 5)
-	events[0] = unix.EpollEvent{
-		Events: unix.EPOLLPRI, /* | unix.EPOLLHUP | unix.EPOLLERR */
-		Fd:     int32(capacityFile.Fd()),
-	}
-
-	err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, int(capacityFile.Fd()), &events[0])
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	bs := make([]byte, 100, 100)
+	col := color.Normal
+	var capacity int
 
 	for {
-		col := color.Normal
-		log.Println("waiting")
-		n, err := unix.EpollWait(epfd, events, -1)
+		data, err := getFileContents(fd)
 		if err != nil {
-			log.Println(err)
-			continue
+			b.sendError(err, c, position)
 		}
 
-		for _, e := range events[:n] {
-			log.Printf("%+v\n", e)
+		for _, line := range strings.Split(data, "\n") {
+			split := strings.Split(line, "=")
+			if len(split) != 2 {
+				continue
+			}
+			key := split[0]
+			val := split[1]
+			switch key {
+			case "POWER_SUPPLY_CAPACITY":
+				capacity, err = strconv.Atoi(val)
+				if err != nil {
+					continue
+				}
+				if capacity > 80 {
+					col = color.Green
+				} else if capacity < 20 {
+					col = color.Red
+				}
+			}
 		}
 
-		r, err := capacityFile.Read(bs)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		// seek to beginning to relatch event
-		capacityFile.Seek(0, io.SeekStart)
-		capacity, err := strconv.Atoi(string(bytes.TrimSpace(bs[0:r])))
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		switch true {
-		case capacity > 80:
-			col = color.Green
-		case capacity < 20:
-			col = color.Red
-		}
-
-		log.Println("updating battery")
 		c <- Update{
 			Block: i3.Block{
-				FullText: fmt.Sprintf("%s: %d%%", b.Name, capacity),
+				FullText: fmt.Sprintf("BAT%d: %d%%", b.Index, capacity),
 				Color:    col,
 			},
 			Position: position,
 		}
+		time.Sleep(5 * time.Second)
 	}
 }
