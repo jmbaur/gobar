@@ -1,6 +1,7 @@
 package module
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,7 +18,31 @@ type Update struct {
 
 // Module is a thing that can print to a block on the i3bar.
 type Module interface {
-	Run(c chan Update, position int)
+	Run(tx chan Update, rx chan i3.ClickEvent, position int)
+}
+
+func parseStdin(tx chan i3.ClickEvent) {
+	r := bufio.NewReader(os.Stdin)
+	if _, err := r.ReadBytes('['); err != nil {
+		return
+	}
+
+	for {
+		data, err := r.ReadBytes('}')
+		if err != nil {
+			continue
+		}
+
+		var event i3.ClickEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			continue
+		}
+		tx <- event
+
+		if _, err := r.ReadBytes(','); err != nil {
+			continue
+		}
+	}
 }
 
 // Run is the entrypoint to running a list of modules.
@@ -26,21 +51,22 @@ func Run(modules ...Module) error {
 		Version:     1,
 		StopSignal:  syscall.SIGSTOP,
 		ContSignal:  syscall.SIGCONT,
-		ClickEvents: false, // TODO(jared): handle STDIN
+		ClickEvents: true,
 	}
 	if data, err := json.Marshal(header); err == nil {
 		fmt.Printf("%s\n", data)
 	}
 
 	done := make(chan struct{}, 1)
-	signals := make(chan os.Signal, 1)
+	events := make(chan i3.ClickEvent)
 	updates := make(chan Update)
 	defer func() {
 		close(done)
-		close(signals)
+		close(events)
 		close(updates)
 	}()
 
+	signals := make(chan os.Signal, 1)
 	signal.Notify(signals)
 
 	go func() {
@@ -57,8 +83,10 @@ func Run(modules ...Module) error {
 		}
 	}()
 
+	go parseStdin(events)
+
 	for i, m := range modules {
-		go m.Run(updates, i)
+		go m.Run(updates, events, i)
 	}
 
 	blocks := make([]i3.Block, len(modules))

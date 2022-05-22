@@ -90,12 +90,12 @@ func (n *Network) print(c chan Update, position int) {
 	}
 }
 
-func (n *Network) Run(c chan Update, position int) {
+func (n *Network) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	if err := n.init(); err != nil {
-		n.sendError(c, err, position)
+		n.sendError(tx, err, position)
 		return
 	}
-	n.print(c, position)
+	n.print(tx, position)
 
 	updates := make(chan netlink.AddrUpdate)
 	done := make(chan struct{}, 1)
@@ -105,7 +105,7 @@ func (n *Network) Run(c chan Update, position int) {
 	}()
 
 	if err := netlink.AddrSubscribe(updates, done); err != nil {
-		n.sendError(c, err, position)
+		n.sendError(tx, err, position)
 		return
 	}
 
@@ -128,7 +128,7 @@ func (n *Network) Run(c chan Update, position int) {
 					continue
 				}
 			}
-			n.print(c, position)
+			n.print(tx, position)
 		}
 	}
 }

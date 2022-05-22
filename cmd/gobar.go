@@ -24,12 +24,14 @@ func decodeToModules(cfg *config.Config) []module.Module {
 
 		var mod module.Module
 		switch name {
-		case "network":
-			mod = &module.Network{}
-		case "datetime":
-			mod = &module.Datetime{}
 		case "battery":
 			mod = &module.Battery{}
+		case "datetime":
+			mod = &module.Datetime{}
+		case "network":
+			mod = &module.Network{}
+		case "text":
+			mod = &module.Text{}
 		default:
 			continue
 		}

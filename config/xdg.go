@@ -7,7 +7,10 @@ import (
 	"strings"
 )
 
-var ErrNoLookupLocation = errors.New("no config file lookup location")
+var (
+	ErrNoLookupLocation = errors.New("no config file lookup location")
+	ErrNoConfig         = errors.New("no config file loaded")
+)
 
 func configFilePriority() []string {
 	dirs := []string{}
@@ -31,6 +34,10 @@ func configFilePriority() []string {
 }
 
 func getConfigFilePath(flagConfigFile string) (string, error) {
+	if flagConfigFile == "NONE" {
+		return "", ErrNoConfig
+	}
+
 	if flagConfigFile != "" {
 		return filepath.Abs(filepath.Join(flagConfigFile))
 	}

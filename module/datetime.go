@@ -15,12 +15,12 @@ type Datetime struct {
 	Interval time.Duration
 }
 
-func (d *Datetime) Run(c chan Update, position int) {
+func (d *Datetime) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	if d.Interval == 0 {
 		d.Interval = 1
 	}
 	for {
-		c <- Update{
+		tx <- Update{
 			Block: i3.Block{
 				FullText: time.Now().Format(d.Format),
 				Color:    col.Normal,

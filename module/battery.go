@@ -37,10 +37,10 @@ func (b *Battery) sendError(err error, c chan Update, position int) {
 	}
 }
 
-func (b *Battery) Run(c chan Update, position int) {
+func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
 	if err != nil {
-		b.sendError(err, c, position)
+		b.sendError(err, tx, position)
 		return
 	}
 	defer fd.Close()
@@ -55,7 +55,7 @@ func (b *Battery) Run(c chan Update, position int) {
 	for {
 		data, err := getFileContents(fd)
 		if err != nil {
-			b.sendError(err, c, position)
+			b.sendError(err, tx, position)
 		}
 
 		for _, line := range strings.Split(data, "\n") {
@@ -98,7 +98,7 @@ func (b *Battery) Run(c chan Update, position int) {
 			statusRune = '\u003f'
 		}
 
-		c <- Update{
+		tx <- Update{
 			Block: i3.Block{
 				FullText: fmt.Sprintf("BAT%d: %c %d%%", b.Index, statusRune, capacity),
 				Color:    color,

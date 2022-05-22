@@ -1,0 +1,4 @@
+---
+modules:
+  - module: "text"
+    content: "gobar"

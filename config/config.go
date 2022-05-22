@@ -20,11 +20,15 @@ func GetConfig(flagConfigFile string) (*Config, error) {
 				"format":   time.RFC1123,
 				"interval": 1,
 			},
+			map[any]any{
+				"module":  "text",
+				"content": "gobar",
+			},
 		},
 	}
 
 	path, err := getConfigFilePath(flagConfigFile)
-	if err == ErrNoLookupLocation {
+	if err == ErrNoLookupLocation || err == ErrNoConfig {
 		return &config, nil
 	}
 	if err != nil {
