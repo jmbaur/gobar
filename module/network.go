@@ -46,8 +46,6 @@ func (n Network) Run(c chan Update, position int) {
 		return
 	}
 
-	col := color.Green
-
 	v4addrs, err := netlink.AddrList(link, unix.AF_INET)
 	if err != nil {
 		n.sendError(c, err, position)
@@ -70,9 +68,11 @@ func (n Network) Run(c chan Update, position int) {
 		}
 	}
 
-	var update netlink.AddrUpdate
 	hasUpdate := false
+	col := color.Green
 	for {
+		var update netlink.AddrUpdate
+
 		if hasUpdate {
 			if update.NewAddr &&
 				update.LinkIndex == link.Attrs().Index {
@@ -94,10 +94,13 @@ func (n Network) Run(c chan Update, position int) {
 		switch true {
 		case !(n.ipv4 == nil) && !(n.ipv6 == nil):
 			fullText = fmt.Sprintf("%s: %s %s", n.Interface, n.ipv4, n.ipv6)
+			col = color.Green
 		case !(n.ipv4 == nil) && n.ipv6 == nil:
 			fullText = fmt.Sprintf("%s: %s", n.Interface, n.ipv4)
+			col = color.Green
 		case n.ipv4 == nil && !(n.ipv6 == nil):
 			fullText = fmt.Sprintf("%s: %s", n.Interface, n.ipv6)
+			col = color.Green
 		default:
 			fullText = fmt.Sprintf("%s: n/a", n.Interface)
 			col = color.Red
