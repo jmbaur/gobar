@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jmbaur/gobar/color"
@@ -14,7 +16,7 @@ import (
 )
 
 type Battery struct {
-	Name string
+	Index int
 }
 
 func getFileContents(f *os.File) (string, error) {
@@ -26,66 +28,62 @@ func getFileContents(f *os.File) (string, error) {
 	return fmt.Sprintf("%s", bytes.Trim(data, "\n")), nil
 }
 
-func (b Battery) Run(c chan Update, position int) {
-	capacityFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity", b.Name))
-	if err != nil {
-		c <- Update{
-			Block: i3.Block{
-				FullText: fmt.Sprintf("%s: %s", b.Name, err),
-			},
-			Position: position,
-		}
-		return
+func (b Battery) sendError(err error, c chan Update, position int) {
+	c <- Update{
+		Block: i3.Block{
+			FullText: fmt.Sprintf("BAT%d: %s", b.Index, err),
+			Color:    color.Red,
+		},
+		Position: position,
 	}
-	defer capacityFile.Close()
+}
 
-	capacityLevelFile, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/capacity_level", b.Name))
+func (b Battery) Run(c chan Update, position int) {
+	log.Println("battery", position)
+	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
 	if err != nil {
-		c <- Update{
-			Block: i3.Block{
-				FullText: fmt.Sprintf("%s: %s", b.Name, err),
-			},
-			Position: position,
-		}
+		b.sendError(err, c, position)
 		return
 	}
-	defer capacityLevelFile.Close()
+	defer fd.Close()
+
+	col := color.Normal
+	var capacity int
 
 	for {
-		var fullText string
-		col := color.Normal
+		data, err := getFileContents(fd)
+		if err != nil {
+			b.sendError(err, c, position)
+		}
 
-		if capacity, err := getFileContents(capacityFile); err != nil {
-			capacityLevel, capacityLevelErr := getFileContents(capacityLevelFile)
-			if capacityLevelErr != nil {
-				fullText = fmt.Sprintf("%s: n/a", b.Name)
-				col = color.Red
-			} else {
-				switch true {
-				case capacityLevel == "Full":
-					col = color.Green
-				}
-				fullText = fmt.Sprintf("%s: %s", b.Name, capacityLevel)
+		for _, line := range strings.Split(data, "\n") {
+			split := strings.Split(line, "=")
+			if len(split) != 2 {
+				continue
 			}
-		} else {
-			if capInt, err := strconv.Atoi(capacity); err != nil {
-			} else {
-				switch true {
-				case capInt > 80:
+			key := split[0]
+			val := split[1]
+			switch key {
+			case "POWER_SUPPLY_CAPACITY":
+				capacity, err = strconv.Atoi(val)
+				if err != nil {
+					continue
+				}
+				if capacity > 80 {
 					col = color.Green
-				case capInt < 20:
+				} else if capacity < 20 {
 					col = color.Red
 				}
-				fullText = fmt.Sprintf("%s: %s%%", b.Name, capacity)
 			}
 		}
+
 		c <- Update{
 			Block: i3.Block{
-				FullText: fullText,
+				FullText: fmt.Sprintf("BAT%d: %d%%", b.Index, capacity),
 				Color:    col,
 			},
 			Position: position,
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
