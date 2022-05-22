@@ -1,0 +1,4 @@
+---
+modules:
+  - module: "battery"
+    index: 0 # BAT0

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmbaur/gobar/color"
+	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
 )
 
@@ -24,20 +24,20 @@ func getFileContents(f *os.File) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s", bytes.Trim(data, "\n")), nil
+	return string(bytes.Trim(data, "\n")), nil
 }
 
-func (b Battery) sendError(err error, c chan Update, position int) {
+func (b *Battery) sendError(err error, c chan Update, position int) {
 	c <- Update{
 		Block: i3.Block{
 			FullText: fmt.Sprintf("BAT%d: %s", b.Index, err),
-			Color:    color.Red,
+			Color:    col.Red,
 		},
 		Position: position,
 	}
 }
 
-func (b Battery) Run(c chan Update, position int) {
+func (b *Battery) Run(c chan Update, position int) {
 	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
 	if err != nil {
 		b.sendError(err, c, position)
@@ -45,8 +45,10 @@ func (b Battery) Run(c chan Update, position int) {
 	}
 	defer fd.Close()
 
-	col := color.Normal
-	var capacity int
+	var (
+		capacity int
+		color    = col.Normal
+	)
 
 	for {
 		data, err := getFileContents(fd)
@@ -68,9 +70,9 @@ func (b Battery) Run(c chan Update, position int) {
 					continue
 				}
 				if capacity > 80 {
-					col = color.Green
+					color = col.Green
 				} else if capacity < 20 {
-					col = color.Red
+					color = col.Red
 				}
 			}
 		}
@@ -78,7 +80,7 @@ func (b Battery) Run(c chan Update, position int) {
 		c <- Update{
 			Block: i3.Block{
 				FullText: fmt.Sprintf("BAT%d: %d%%", b.Index, capacity),
-				Color:    col,
+				Color:    color,
 			},
 			Position: position,
 		}

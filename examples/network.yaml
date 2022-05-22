@@ -1,0 +1,9 @@
+---
+modules:
+  # - module: "battery"
+  #   index: 0 # BAT0
+  - module: "network"
+    interface: "wlan0"
+  # - module: "datetime"
+  #   format: "2006-01-02 15:04:05"
+  #   interval: 1

@@ -2,6 +2,8 @@ package i3
 
 import "syscall"
 
+// Header is the first thing that i3bar will read to determine how this program
+// will interact with it.
 type Header struct {
 	Version     int            `json:"version"`
 	StopSignal  syscall.Signal `json:"stop_signal,omitempty"`
@@ -9,6 +11,7 @@ type Header struct {
 	ClickEvents bool           `json:"click_events,omitempty"`
 }
 
+// Block is a single section of the i3bar.
 type Block struct {
 	FullText            string `json:"full_text"`
 	ShortText           string `json:"short_text,omitempty"`
@@ -29,6 +32,8 @@ type Block struct {
 	Markup              string `json:"markup,omitempty"`
 }
 
+// ClickEvent is the data sent to this program via STDIN when a click is
+// registered on the i3bar.
 type ClickEvent struct {
 	Name      string   `json:"name"`
 	Instance  string   `json:"instance"`

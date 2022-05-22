@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var ErrNoLookupLocation = errors.New("No config file lookup location")
+var ErrNoLookupLocation = errors.New("no config file lookup location")
 
 func configFilePriority() []string {
 	dirs := []string{}

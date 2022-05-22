@@ -15,10 +15,12 @@ type Update struct {
 	Position int
 }
 
+// Module is a thing that can print to a block on the i3bar.
 type Module interface {
 	Run(c chan Update, position int)
 }
 
+// Run is the entrypoint to running a list of modules.
 func Run(modules ...Module) error {
 	header := i3.Header{
 		Version:     1,

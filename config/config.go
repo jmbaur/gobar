@@ -16,8 +16,9 @@ func GetConfig(flagConfigFile string) (*Config, error) {
 	config := Config{
 		Modules: []any{
 			map[any]any{
-				"module": "datetime",
-				"format": time.RFC1123,
+				"module":   "datetime",
+				"format":   time.RFC1123,
+				"interval": 1,
 			},
 		},
 	}
