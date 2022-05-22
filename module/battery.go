@@ -46,8 +46,10 @@ func (b *Battery) Run(c chan Update, position int) {
 	defer fd.Close()
 
 	var (
-		capacity int
-		color    = col.Normal
+		capacity   int
+		status     string
+		statusRune rune
+		color      = col.Normal
 	)
 
 	for {
@@ -64,22 +66,41 @@ func (b *Battery) Run(c chan Update, position int) {
 			key := split[0]
 			val := split[1]
 			switch key {
+			case "POWER_SUPPLY_STATUS":
+				status = val
 			case "POWER_SUPPLY_CAPACITY":
-				capacity, err = strconv.Atoi(val)
+				maybeCapacity, err := strconv.Atoi(val)
 				if err != nil {
 					continue
 				}
-				if capacity > 80 {
-					color = col.Green
-				} else if capacity < 20 {
-					color = col.Red
-				}
+				capacity = maybeCapacity
 			}
+		}
+
+		if capacity > 80 {
+			color = col.Green
+		} else if capacity < 20 {
+			color = col.Red
+		}
+
+		switch status {
+		case "Charging":
+			statusRune = '\u2191'
+		case "Discharging":
+			statusRune = '\u2193'
+		case "Not charging":
+			statusRune = '\u26aa'
+		case "Full":
+			statusRune = '\u26ab'
+		case "Unknown":
+			fallthrough
+		default:
+			statusRune = '\u003f'
 		}
 
 		c <- Update{
 			Block: i3.Block{
-				FullText: fmt.Sprintf("BAT%d: %d%%", b.Index, capacity),
+				FullText: fmt.Sprintf("BAT%d: %c %d%%", b.Index, statusRune, capacity),
 				Color:    color,
 			},
 			Position: position,
