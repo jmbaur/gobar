@@ -77,10 +77,13 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 			}
 		}
 
-		if capacity > 80 {
+		switch true {
+		case capacity > 80:
 			color = col.Green
-		} else if capacity < 20 {
+		case capacity < 20:
 			color = col.Red
+		default:
+			color = col.Normal
 		}
 
 		switch status {
