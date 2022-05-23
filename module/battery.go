@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,12 @@ import (
 
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
+)
+
+var (
+	pluggedInEmoji     = '\U0001F50C'
+	batteryChars       = []rune{'\u2581', '\u2582', '\u2583', '\u2584', '\u2585', '\u2586', '\u2587', '\u2588'}
+	capacityBucketSize = float64(101) / float64(len(batteryChars))
 )
 
 type Battery struct {
@@ -46,10 +53,10 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	defer fd.Close()
 
 	var (
-		capacity   int
-		status     string
-		statusRune rune
-		color      = col.Normal
+		capacity int
+		status   string
+		color    = col.Normal
+		fullText string
 	)
 
 	for {
@@ -68,6 +75,7 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 			switch key {
 			case "POWER_SUPPLY_STATUS":
 				status = val
+
 			case "POWER_SUPPLY_CAPACITY":
 				maybeCapacity, err := strconv.Atoi(val)
 				if err != nil {
@@ -76,6 +84,9 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 				capacity = maybeCapacity
 			}
 		}
+
+		bucket := int(math.Floor(float64(capacity) / capacityBucketSize))
+		capacityRune := batteryChars[bucket]
 
 		switch true {
 		case capacity > 80:
@@ -88,22 +99,16 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 
 		switch status {
 		case "Charging":
-			statusRune = '\u2191'
-		case "Discharging":
-			statusRune = '\u2193'
-		case "Not charging":
-			statusRune = '\u26cb'
-		case "Full":
-			statusRune = '\u25cf'
-		case "Unknown":
 			fallthrough
+		case "Full":
+			fullText = fmt.Sprintf("BAT%d: %c %c %d%%", b.Index, pluggedInEmoji, capacityRune, capacity)
 		default:
-			statusRune = '\u003f'
+			fullText = fmt.Sprintf("BAT%d: %c %d%%", b.Index, capacityRune, capacity)
 		}
 
 		tx <- Update{
 			Block: i3.Block{
-				FullText: fmt.Sprintf("BAT%d: %c %d%%", b.Index, statusRune, capacity),
+				FullText: fullText,
 				Color:    color,
 			},
 			Position: position,
