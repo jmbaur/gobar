@@ -79,13 +79,11 @@ func Run(modules ...Module) error {
 		close(events)
 		close(updates)
 	}()
+	go parseStdin(events)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals)
-
 	go handleSignals(signals, done)
-
-	go parseStdin(events)
 
 	for i, m := range modules {
 		go m.Run(updates, events, i)
