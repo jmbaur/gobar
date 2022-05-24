@@ -89,10 +89,12 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 		capacityRune := batteryChars[bucket]
 
 		switch true {
-		case (status == "Charging" || status == "Full") && capacity > 80:
+		case (status == "Charging" || status == "Full"):
 			fullText = fmt.Sprintf("BAT%d: %c %c %d%%", b.Index, pluggedInEmoji, capacityRune, capacity)
-			color = col.Green
-		case status != "Charging" && capacity < 20:
+			if capacity > 80 {
+				color = col.Green
+			}
+		case capacity < 20:
 			color = col.Red
 			fallthrough
 		default:
