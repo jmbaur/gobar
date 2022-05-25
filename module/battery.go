@@ -1,12 +1,14 @@
 package module
 
 import (
-	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,8 +18,10 @@ import (
 )
 
 var (
-	pluggedInEmoji = '\U0001F50C'
-	batteryChars   = []rune{
+	SysfsPowerSupplyCharging = "Charging"
+	SysfsPowerSupplyFull     = "Full"
+	pluggedInEmoji           = '\U0001F50C'
+	batteryChars             = []rune{
 		'\u005f',
 		'\u2581',
 		'\u2582',
@@ -31,41 +35,56 @@ var (
 	capacityBucketSize = float64(100) / float64(len(batteryChars)-1)
 )
 
-type Battery struct {
-	Index int
-}
+type Battery struct{}
 
-func getFileContents(f *os.File) (string, error) {
+// getUeventMap reads the contents of a uevent formatted file (e.g.:
+// KEY=VAL\n...) and seeks the fd pointer back to the beginning of the file so
+// the fd may remain open for continued reads.
+func getUeventMap(f *os.File) (map[string]string, error) {
 	defer f.Seek(0, io.SeekStart)
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(bytes.Trim(data, "\n")), nil
+
+	ueventMap := make(map[string]string)
+	for _, line := range strings.Split(string(data), "\n") {
+		split := strings.Split(line, "=")
+		if len(split) != 2 {
+			continue
+		}
+		key := split[0]
+		val := split[1]
+		ueventMap[key] = val
+	}
+	return ueventMap, nil
 }
 
 func (b *Battery) sendError(err error, c chan Update, position int) {
 	c <- Update{
 		Block: i3.Block{
-			FullText: fmt.Sprintf("BAT%d: %s", b.Index, err),
+			FullText: fmt.Sprintf("BAT: %s", err),
 			Color:    col.Red,
 		},
 		Position: position,
 	}
 }
 
-func (b *Battery) getBlock(capacity int, status string) i3.Block {
+func (b *Battery) getBlock(capacity float64, acPluggedIn bool) i3.Block {
 	var (
-		fullText string
-		color    = col.Normal
+		fullText     string
+		color        = col.Normal
+		presCapacity int
 	)
 
-	bucket := int(math.Floor(float64(capacity) / capacityBucketSize))
+	roundedCapacity := math.RoundToEven(capacity)
+	presCapacity = int(roundedCapacity)
+	bucket := int(math.Floor(roundedCapacity / capacityBucketSize))
 	capacityRune := batteryChars[bucket]
 
 	switch true {
-	case (status == "Charging" || status == "Full"):
-		fullText = fmt.Sprintf("BAT%d: %c %c %d%%", b.Index, pluggedInEmoji, capacityRune, capacity)
+	case acPluggedIn:
+		fullText = fmt.Sprintf("BAT: %c %c %d%%", pluggedInEmoji, capacityRune, presCapacity)
 		if capacity > 80 {
 			color = col.Green
 		}
@@ -74,7 +93,7 @@ func (b *Battery) getBlock(capacity int, status string) i3.Block {
 	}
 
 	if fullText == "" {
-		fullText = fmt.Sprintf("BAT%d: %c %d%%", b.Index, capacityRune, capacity)
+		fullText = fmt.Sprintf("BAT: %c %d%%", capacityRune, presCapacity)
 	}
 
 	return i3.Block{
@@ -84,45 +103,85 @@ func (b *Battery) getBlock(capacity int, status string) i3.Block {
 }
 
 func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
-	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
+	batteries := []string{} // of the form "BAT0", "BAT1", etc
+
+	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, "BAT") {
+			batteries = append(batteries, base)
+		}
+		return nil
+	}); err != nil {
+		log.Println(err)
+		return
+	}
+
+	acFd, err := os.Open("/sys/class/power_supply/AC/uevent")
 	if err != nil {
 		b.sendError(err, tx, position)
 		return
 	}
-	defer fd.Close()
+
+	batteryFDs := []*os.File{}
+	for _, bat := range batteries {
+		fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/uevent", bat))
+		if err != nil {
+			b.sendError(err, tx, position)
+			return
+		}
+		defer fd.Close()
+		batteryFDs = append(batteryFDs, fd)
+	}
 
 	for {
 		var (
-			capacity int
-			status   string
+			acPluggedIn   bool
+			energyFullSum int
+			energyNowSum  int
 		)
 
-		data, err := getFileContents(fd)
+		acUeventMap, err := getUeventMap(acFd)
 		if err != nil {
 			b.sendError(err, tx, position)
 		}
-
-		for _, line := range strings.Split(data, "\n") {
-			split := strings.Split(line, "=")
-			if len(split) != 2 {
-				continue
-			}
-			key := split[0]
-			val := split[1]
-			switch key {
-			case "POWER_SUPPLY_STATUS":
-				status = val
-			case "POWER_SUPPLY_CAPACITY":
-				maybeCapacity, err := strconv.Atoi(val)
-				if err != nil {
-					continue
-				}
-				capacity = maybeCapacity
-			}
+		if powerSupplyOnline, ok := acUeventMap["POWER_SUPPLY_ONLINE"]; ok &&
+			powerSupplyOnline == "1" {
+			acPluggedIn = true
 		}
 
+	batteryLoop:
+		for _, fd := range batteryFDs {
+			batteryUeventMap, err := getUeventMap(fd)
+			if err != nil {
+				b.sendError(err, tx, position)
+			}
+			for k, v := range batteryUeventMap {
+				switch k {
+				case "POWER_SUPPLY_ENERGY_FULL":
+					full, err := strconv.Atoi(v)
+					if err != nil {
+						continue batteryLoop
+					}
+					energyFullSum += full
+				case "POWER_SUPPLY_ENERGY_NOW":
+					now, err := strconv.Atoi(v)
+					if err != nil {
+						continue batteryLoop
+					}
+					energyNowSum += now
+				case "POWER_SUPPLY_STATUS":
+					if !acPluggedIn {
+						acPluggedIn = (v == SysfsPowerSupplyCharging)
+					}
+				}
+			}
+
+		}
+
+		capacity := float64(energyNowSum) / float64(energyFullSum) * 100
+
 		tx <- Update{
-			Block:    b.getBlock(capacity, status),
+			Block:    b.getBlock(capacity, acPluggedIn),
 			Position: position,
 		}
 		time.Sleep(5 * time.Second)
