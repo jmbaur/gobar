@@ -18,7 +18,7 @@ import (
 var (
 	pluggedInEmoji = '\U0001F50C'
 	batteryChars   = []rune{
-		'\u0200',
+		'\u005f',
 		'\u2581',
 		'\u2582',
 		'\u2583',
