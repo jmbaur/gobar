@@ -54,6 +54,35 @@ func (b *Battery) sendError(err error, c chan Update, position int) {
 	}
 }
 
+func (b *Battery) getBlock(capacity int, status string) i3.Block {
+	var (
+		fullText string
+		color    = col.Normal
+	)
+
+	bucket := int(math.Floor(float64(capacity) / capacityBucketSize))
+	capacityRune := batteryChars[bucket]
+
+	switch true {
+	case (status == "Charging" || status == "Full"):
+		fullText = fmt.Sprintf("BAT%d: %c %c %d%%", b.Index, pluggedInEmoji, capacityRune, capacity)
+		if capacity > 80 {
+			color = col.Green
+		}
+	case capacity < 20:
+		color = col.Red
+	}
+
+	if fullText == "" {
+		fullText = fmt.Sprintf("BAT%d: %c %d%%", b.Index, capacityRune, capacity)
+	}
+
+	return i3.Block{
+		FullText: fullText,
+		Color:    color,
+	}
+}
+
 func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/BAT%d/uevent", b.Index))
 	if err != nil {
@@ -62,14 +91,12 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	}
 	defer fd.Close()
 
-	var (
-		capacity int
-		status   string
-		color    = col.Normal
-		fullText string
-	)
-
 	for {
+		var (
+			capacity int
+			status   string
+		)
+
 		data, err := getFileContents(fd)
 		if err != nil {
 			b.sendError(err, tx, position)
@@ -94,27 +121,8 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 			}
 		}
 
-		bucket := int(math.Floor(float64(capacity) / capacityBucketSize))
-		capacityRune := batteryChars[bucket]
-
-		switch true {
-		case (status == "Charging" || status == "Full"):
-			fullText = fmt.Sprintf("BAT%d: %c %c %d%%", b.Index, pluggedInEmoji, capacityRune, capacity)
-			if capacity > 80 {
-				color = col.Green
-			}
-		case capacity < 20:
-			color = col.Red
-			fallthrough
-		default:
-			fullText = fmt.Sprintf("BAT%d: %c %d%%", b.Index, capacityRune, capacity)
-		}
-
 		tx <- Update{
-			Block: i3.Block{
-				FullText: fullText,
-				Color:    color,
-			},
+			Block:    b.getBlock(capacity, status),
 			Position: position,
 		}
 		time.Sleep(5 * time.Second)
