@@ -16,9 +16,19 @@ import (
 )
 
 var (
-	pluggedInEmoji     = '\U0001F50C'
-	batteryChars       = []rune{'\u2581', '\u2582', '\u2583', '\u2584', '\u2585', '\u2586', '\u2587', '\u2588'}
-	capacityBucketSize = float64(101) / float64(len(batteryChars))
+	pluggedInEmoji = '\U0001F50C'
+	batteryChars   = []rune{
+		'\u0200',
+		'\u2581',
+		'\u2582',
+		'\u2583',
+		'\u2584',
+		'\u2585',
+		'\u2586',
+		'\u2587',
+		'\u2588',
+	}
+	capacityBucketSize = float64(100) / float64(len(batteryChars)-1)
 )
 
 type Battery struct {
@@ -75,7 +85,6 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 			switch key {
 			case "POWER_SUPPLY_STATUS":
 				status = val
-
 			case "POWER_SUPPLY_CAPACITY":
 				maybeCapacity, err := strconv.Atoi(val)
 				if err != nil {
