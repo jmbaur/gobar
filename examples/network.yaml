@@ -1,5 +1,6 @@
 ---
-# Will match any interface starting with name 'en', such as enp1s0
+# Will match any interface starting with name 'en' or 'wl', such as 'enp1s0' or
+# 'wlp1s0', useful for matching a wireless or wired network interface.
 modules:
   - module: "network"
-    pattern: "en*"
+    pattern: "(en|wl)*"
