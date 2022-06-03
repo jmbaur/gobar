@@ -1,4 +1,5 @@
 ---
+# Will print info for BAT0
 modules:
   - module: "battery"
-    index: 0 # BAT0
+    index: 0
