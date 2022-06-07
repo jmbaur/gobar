@@ -28,6 +28,7 @@ type Network struct {
 	// The name of the network interface
 	Interface *string
 	Pattern   *string
+	patternRe *regexp.Regexp
 
 	ifaces []iface
 }
@@ -49,13 +50,19 @@ func (n *Network) valid() bool {
 
 func (n *Network) init() error {
 	if n.Pattern != nil {
+		var err error
+		n.patternRe, err = regexp.Compile(*n.Pattern)
+		if err != nil {
+			return err
+		}
+
 		links, err := netlink.LinkList()
 		if err != nil {
 			return err
 		}
 		matchedNone := true
 		for _, link := range links {
-			if matched, err := regexp.MatchString(*n.Pattern, link.Attrs().Name); matched && err == nil {
+			if matched := n.patternRe.Match([]byte(link.Attrs().Name)); matched {
 				matchedNone = false
 				n.ifaces = append(n.ifaces, iface{
 					link: link,
