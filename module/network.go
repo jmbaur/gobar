@@ -127,8 +127,12 @@ func (n *Network) print(c chan Update, position int) {
 		case iface.ipv4 == nil && iface.ipv6 != nil:
 			fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv6))
 		default:
-			fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: n/a", name))
-			color = col.Red
+			if n.patternRe != nil {
+				continue
+			} else {
+				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: n/a", name))
+				color = col.Red
+			}
 		}
 	}
 
