@@ -75,9 +75,7 @@ func (n *Network) init() error {
 		if err != nil {
 			return err
 		}
-		n.ifaces = append(n.ifaces, iface{
-			link: link,
-		})
+		n.ifaces = append(n.ifaces, iface{link: link})
 	}
 
 	for i, iface := range n.ifaces {
@@ -111,26 +109,44 @@ func (n *Network) print(c chan Update, position int) {
 		fullTextUnjoined = []string{}
 	)
 
-	for _, iface := range n.ifaces {
-		name := iface.link.Attrs().Name
-		if iface.ipv4 != nil || iface.ipv6 != nil {
-			color = col.Green
+	if len(n.ifaces) == 0 {
+		color = col.Red
+		fullTextUnjoined = []string{"network: no interfaces"}
+	} else {
+		var hasIPv4, hasIPv6 bool
+		for _, iface := range n.ifaces {
+			name := iface.link.Attrs().Name
+
+			if iface.ipv4 != nil {
+				hasIPv4 = true
+			}
+			if iface.ipv6 != nil {
+				hasIPv6 = true
+			}
+
+			switch true {
+			case iface.ipv4 != nil && iface.ipv6 != nil:
+				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s %s", name, iface.ipv4, iface.ipv6))
+			case iface.ipv4 != nil && iface.ipv6 == nil:
+				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv4))
+			case iface.ipv4 == nil && iface.ipv6 != nil:
+				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv6))
+			default:
+				if n.patternRe != nil {
+					continue
+				} else {
+					fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: n/a", name))
+				}
+			}
 		}
 
 		switch true {
-		case iface.ipv4 != nil && iface.ipv6 != nil:
-			fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s %s", name, iface.ipv4, iface.ipv6))
-		case iface.ipv4 != nil && iface.ipv6 == nil:
-			fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv4))
-		case iface.ipv4 == nil && iface.ipv6 != nil:
-			fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv6))
+		case hasIPv6:
+			color = col.Green
+		case hasIPv4 && !hasIPv6:
+			color = col.Yellow
 		default:
-			if n.patternRe != nil {
-				continue
-			} else {
-				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: n/a", name))
-				color = col.Red
-			}
+			color = col.Red
 		}
 	}
 
