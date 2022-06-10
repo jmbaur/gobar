@@ -62,11 +62,9 @@ func (n *Network) init() error {
 		}
 		matchedNone := true
 		for _, link := range links {
-			if matched := n.patternRe.Match([]byte(link.Attrs().Name)); matched {
+			if matched := n.patternRe.MatchString(link.Attrs().Name); matched {
 				matchedNone = false
-				n.ifaces = append(n.ifaces, iface{
-					link: link,
-				})
+				n.ifaces = append(n.ifaces, iface{link: link})
 			}
 		}
 		if matchedNone {
@@ -156,39 +154,79 @@ func (n *Network) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	}
 	n.print(tx, position)
 
-	updates := make(chan netlink.AddrUpdate)
+	linkUpdates := make(chan netlink.LinkUpdate)
+	addrUpdates := make(chan netlink.AddrUpdate)
 	done := make(chan struct{}, 1)
 	defer func() {
-		close(updates)
+		close(linkUpdates)
+		close(addrUpdates)
 		close(done)
 	}()
 
-	if err := netlink.AddrSubscribe(updates, done); err != nil {
+	if err := netlink.LinkSubscribe(linkUpdates, done); err != nil {
 		n.sendError(tx, err, position)
 		return
 	}
 
-	for update := range updates {
-		for i, iface := range n.ifaces {
-			if update.LinkIndex == iface.link.Attrs().Index {
-				if update.NewAddr {
-					if len(update.LinkAddress.IP) == net.IPv4len && chooseIPv4(update.LinkAddress.IP) {
-						n.ifaces[i].ipv4 = update.LinkAddress.IP
-					} else if chooseIPv6(update.LinkAddress.IP, update.Flags) {
-						n.ifaces[i].ipv6 = update.LinkAddress.IP
-					} else {
-						continue
-					}
-				} else {
-					if iface.ipv4.Equal(update.LinkAddress.IP) {
-						n.ifaces[i].ipv4 = nil
-					} else if iface.ipv6.Equal(update.LinkAddress.IP) {
-						n.ifaces[i].ipv6 = nil
-					} else {
-						continue
+	if err := netlink.AddrSubscribe(addrUpdates, done); err != nil {
+		n.sendError(tx, err, position)
+		return
+	}
+
+	for {
+		select {
+		case linkUpdate := <-linkUpdates:
+			if n.patternRe == nil {
+				continue
+			}
+			if !n.patternRe.MatchString(linkUpdate.Link.Attrs().Name) {
+				continue
+			}
+			switch linkUpdate.Header.Type {
+			case unix.RTM_NEWLINK:
+				var existing bool
+				for _, iface := range n.ifaces {
+					if iface.link.Attrs().Index == linkUpdate.Link.Attrs().Index {
+						existing = true
 					}
 				}
-				n.print(tx, position)
+				if !existing {
+					n.ifaces = append(n.ifaces, iface{link: linkUpdate.Link})
+				}
+			case unix.RTM_DELLINK:
+				for i, iface := range n.ifaces {
+					if iface.link.Attrs().Index == linkUpdate.Link.Attrs().Index {
+						if i == len(n.ifaces)-1 {
+							n.ifaces = append(n.ifaces[0:i], n.ifaces[i+1:]...)
+						} else {
+							n.ifaces = n.ifaces[0:i]
+						}
+						break
+					}
+				}
+			}
+		case addrUpdate := <-addrUpdates:
+			for i, iface := range n.ifaces {
+				if addrUpdate.LinkIndex == iface.link.Attrs().Index {
+					if addrUpdate.NewAddr {
+						if len(addrUpdate.LinkAddress.IP) == net.IPv4len && chooseIPv4(addrUpdate.LinkAddress.IP) {
+							n.ifaces[i].ipv4 = addrUpdate.LinkAddress.IP
+						} else if chooseIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) {
+							n.ifaces[i].ipv6 = addrUpdate.LinkAddress.IP
+						} else {
+							continue
+						}
+					} else {
+						if iface.ipv4.Equal(addrUpdate.LinkAddress.IP) {
+							n.ifaces[i].ipv4 = nil
+						} else if iface.ipv6.Equal(addrUpdate.LinkAddress.IP) {
+							n.ifaces[i].ipv6 = nil
+						} else {
+							continue
+						}
+					}
+					n.print(tx, position)
+				}
 			}
 		}
 	}
