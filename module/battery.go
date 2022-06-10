@@ -86,8 +86,10 @@ func (b *Battery) getBlock(capacity float64, acPluggedIn bool) i3.Block {
 		if capacity > 80 {
 			color = col.Green
 		}
-	case capacity < 20:
+	case capacity < 10:
 		color = col.Red
+	case capacity < 20:
+		color = col.Yellow
 	}
 
 	if fullText == "" {
