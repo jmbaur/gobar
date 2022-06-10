@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -111,7 +110,7 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 		}
 		return nil
 	}); err != nil {
-		log.Println(err)
+		b.sendError(err, tx, position)
 		return
 	}
 
