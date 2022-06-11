@@ -147,6 +147,7 @@ func (n *Network) print(c chan Update, position int) {
 			color = col.Yellow
 		default:
 			color = col.Red
+			fullTextUnjoined = []string{"network: not connected"}
 		}
 	}
 
