@@ -28,6 +28,8 @@ func decodeToModules(cfg *config.Config) []module.Module {
 			mod = &module.Battery{}
 		case "datetime":
 			mod = &module.Datetime{}
+		case "memory":
+			mod = &module.Memory{}
 		case "network":
 			mod = &module.Network{}
 		case "text":

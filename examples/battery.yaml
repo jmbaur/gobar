@@ -1,5 +1,4 @@
 ---
-# Will print info for BAT0
+# Will print info for all batteries in system
 modules:
   - module: "battery"
-    index: 0

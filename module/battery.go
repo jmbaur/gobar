@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -40,7 +39,7 @@ type Battery struct{}
 // the fd may remain open for continued reads.
 func getUeventMap(f *os.File) (map[string]string, error) {
 	defer f.Seek(0, io.SeekStart)
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
