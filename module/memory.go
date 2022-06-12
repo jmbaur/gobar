@@ -83,12 +83,20 @@ outer:
 			}
 		}
 
-		percentAvailable := ((m.memTotal - memAvailable) / m.memTotal) * 100
+		percentUnavailable := ((m.memTotal - memAvailable) / m.memTotal) * 100
+
+		color := col.Normal
+		switch true {
+		case percentUnavailable > 50:
+			color = col.Yellow
+		case percentUnavailable > 75:
+			color = col.Red
+		}
 
 		tx <- Update{
 			Block: i3.Block{
-				FullText: fmt.Sprintf("MEM: %.0f%%", percentAvailable),
-				Color:    col.Normal,
+				FullText: fmt.Sprintf("MEM: %.0f%%", percentUnavailable),
+				Color:    color,
 			},
 			Position: position,
 		}
