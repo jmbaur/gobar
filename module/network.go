@@ -93,10 +93,16 @@ func (n *Network) init() error {
 		if err != nil {
 			return err
 		}
+		var fallbackIP net.IP
 		for _, addr := range v6addrs {
-			if chooseIPv6(addr.IP, addr.Flags) {
+			if chosen, fallback := chooseIPv6(addr.IP, addr.Flags); chosen {
 				n.ifaces[i].ipv6 = addr.IP
+			} else if fallback {
+				fallbackIP = addr.IP
 			}
+		}
+		if n.ifaces[i].ipv6 == nil && fallbackIP != nil {
+			n.ifaces[i].ipv6 = fallbackIP
 		}
 	}
 
@@ -228,7 +234,7 @@ func (n *Network) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 					if addrUpdate.NewAddr {
 						if len(addrUpdate.LinkAddress.IP) == net.IPv4len && chooseIPv4(addrUpdate.LinkAddress.IP) {
 							n.ifaces[i].ipv4 = addrUpdate.LinkAddress.IP
-						} else if chooseIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) {
+						} else if chosen, fallback := chooseIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags); chosen || fallback {
 							n.ifaces[i].ipv6 = addrUpdate.LinkAddress.IP
 						} else {
 							continue
@@ -253,9 +259,11 @@ func chooseIPv4(ip net.IP) bool {
 	return ip.IsPrivate()
 }
 
-func chooseIPv6(ip net.IP, flags int) bool {
+// chooseIPv6 returns whether the IP should be chosen and whether it can be
+// used as a fallback if none other are chosen.
+func chooseIPv6(ip net.IP, flags int) (bool, bool) {
 	if flags&unix.IFA_F_MANAGETEMPADDR > 0 {
-		return false
+		return false, true
 	}
-	return !ip.IsPrivate() && ip.IsGlobalUnicast()
+	return !ip.IsPrivate() && ip.IsGlobalUnicast(), false
 }
