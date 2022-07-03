@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,22 +25,26 @@ type Module interface {
 func parseStdin(tx chan i3.ClickEvent) {
 	r := bufio.NewReader(os.Stdin)
 	if _, err := r.ReadBytes('['); err != nil {
+		log.Println(err)
 		return
 	}
 
 	for {
 		data, err := r.ReadBytes('}')
 		if err != nil {
+			log.Println(err)
 			continue
 		}
 
 		var event i3.ClickEvent
 		if err := json.Unmarshal(data, &event); err != nil {
+			log.Println(err)
 			continue
 		}
 		tx <- event
 
 		if _, err := r.ReadBytes(','); err != nil {
+			log.Println(err)
 			continue
 		}
 	}
@@ -67,9 +72,11 @@ func Run(modules ...Module) error {
 		ContSignal:  syscall.SIGCONT,
 		ClickEvents: true,
 	}
-	if data, err := json.Marshal(header); err == nil {
-		fmt.Printf("%s\n", data)
+	headerData, err := json.Marshal(header)
+	if err != nil {
+		return err
 	}
+	fmt.Printf("%s\n", headerData)
 
 	done := make(chan struct{}, 1)
 	events := make(chan i3.ClickEvent)
@@ -103,14 +110,18 @@ func Run(modules ...Module) error {
 		case <-done:
 			isDone = true
 		}
-		if data, err := json.Marshal(blocks); err == nil {
-			if isDone {
-				fmt.Printf("%s\n]\n", data)
-				break
-			} else {
-				fmt.Printf("%s,\n", data)
-			}
+		data, err := json.Marshal(blocks)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
+
+		if isDone {
+			fmt.Printf("%s\n]\n", data)
+			break
+		}
+
+		fmt.Printf("%s,\n", data)
 	}
 
 	return nil

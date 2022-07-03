@@ -1,15 +1,17 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/jmbaur/gobar/cmd"
 )
 
 func main() {
+	log.SetPrefix("gobar: ")
+	log.SetFlags(log.Lmsgprefix)
 	if err := cmd.Run(); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 }
