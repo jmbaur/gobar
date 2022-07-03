@@ -13,7 +13,7 @@
         version = "0.1.0";
         CGO_ENABLED = 0;
         src = builtins.path { path = ./.; };
-        vendorSha256 = "sha256-1SAI16wx3Rm4kqXszNHIPSAJmX57TG2IzOErQY5lPr4=";
+        vendorSha256 = "sha256-07mvptzyt40ag3JUwUpBC40hQi7ipvX4UWlrf36OfdM=";
       };
     };
   } // flake-utils.lib.eachDefaultSystem (system:
