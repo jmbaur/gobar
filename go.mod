@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/vishvananda/netlink v1.1.0
-	golang.org/x/sys v0.0.0-20220610221304-9f5ed59c137d
+	golang.org/x/sys v0.0.0-20220702020025-31831981b65f
 )
 
 require (
