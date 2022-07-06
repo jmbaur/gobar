@@ -61,13 +61,18 @@ func (d *Datetime) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	for {
 		select {
 		case click := <-rx:
+			direction := 0
 			switch click.Button {
-			case i3.LeftClick, i3.RightClick:
-				if tzIndex == len(tzs)-1 {
-					tzIndex = 0
-				} else {
-					tzIndex++
-				}
+			case i3.LeftClick:
+				direction = 1
+			case i3.RightClick:
+				direction = -1
+			}
+			tzIndex += direction
+			if tzIndex >= len(tzs) {
+				tzIndex = 0
+			} else if tzIndex < 0 {
+				tzIndex = len(tzs) - 1
 			}
 			d.print(tx, now.In(tzs[tzIndex]))
 		case <-ready:
