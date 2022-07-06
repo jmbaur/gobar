@@ -19,20 +19,19 @@ type Memory struct {
 	memTotal float32
 }
 
-func (m *Memory) sendError(err error, c chan Update, position int) {
-	c <- Update{
-		Block: i3.Block{
-			FullText: fmt.Sprintf("MEM: %s", err),
-			Color:    col.Red,
-		},
-		Position: position,
+func (m *Memory) sendError(err error, c chan i3.Block) {
+	c <- i3.Block{
+		Name:     "memory",
+		Instance: "memory",
+		FullText: fmt.Sprintf("MEM: %s", err),
+		Color:    col.Red,
 	}
 }
 
-func (m *Memory) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
+func (m *Memory) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
-		m.sendError(err, tx, position)
+		m.sendError(err, tx)
 		return
 	}
 	defer f.Close()
@@ -43,12 +42,12 @@ outer:
 
 		data, err := io.ReadAll(f)
 		if err != nil {
-			m.sendError(err, tx, position)
+			m.sendError(err, tx)
 			continue
 		}
 		_, err = f.Seek(0, io.SeekStart)
 		if err != nil {
-			m.sendError(err, tx, position)
+			m.sendError(err, tx)
 			continue
 		}
 
@@ -93,12 +92,11 @@ outer:
 			color = col.Red
 		}
 
-		tx <- Update{
-			Block: i3.Block{
-				FullText: fmt.Sprintf("MEM: %.0f%%", percentUnavailable),
-				Color:    color,
-			},
-			Position: position,
+		tx <- i3.Block{
+			Name:     "memory",
+			Instance: "memory",
+			FullText: fmt.Sprintf("MEM: %.0f%%", percentUnavailable),
+			Color:    color,
 		}
 		time.Sleep(5 * time.Second)
 	}

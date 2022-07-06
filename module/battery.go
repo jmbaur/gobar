@@ -57,13 +57,12 @@ func getUeventMap(f *os.File) (map[string]string, error) {
 	return ueventMap, nil
 }
 
-func (b *Battery) sendError(err error, c chan Update, position int) {
-	c <- Update{
-		Block: i3.Block{
-			FullText: fmt.Sprintf("BAT: %s", err),
-			Color:    col.Red,
-		},
-		Position: position,
+func (b *Battery) sendError(err error, c chan i3.Block) {
+	c <- i3.Block{
+		Name:     "battery",
+		Instance: "battery",
+		FullText: fmt.Sprintf("BAT: %s", err),
+		Color:    col.Red,
 	}
 }
 
@@ -96,12 +95,14 @@ func (b *Battery) getBlock(capacity float64, acPluggedIn bool) i3.Block {
 	}
 
 	return i3.Block{
+		Name:     "battery",
+		Instance: "battery",
 		FullText: fullText,
 		Color:    color,
 	}
 }
 
-func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
+func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	batteries := []string{} // of the form "BAT0", "BAT1", etc
 
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
@@ -111,13 +112,13 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 		}
 		return nil
 	}); err != nil {
-		b.sendError(err, tx, position)
+		b.sendError(err, tx)
 		return
 	}
 
 	acFd, err := os.Open("/sys/class/power_supply/AC/uevent")
 	if err != nil {
-		b.sendError(err, tx, position)
+		b.sendError(err, tx)
 		return
 	}
 
@@ -125,7 +126,7 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	for _, bat := range batteries {
 		fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/uevent", bat))
 		if err != nil {
-			b.sendError(err, tx, position)
+			b.sendError(err, tx)
 			return
 		}
 		defer fd.Close()
@@ -141,7 +142,7 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 
 		acUeventMap, err := getUeventMap(acFd)
 		if err != nil {
-			b.sendError(err, tx, position)
+			b.sendError(err, tx)
 		}
 		if powerSupplyOnline, ok := acUeventMap["POWER_SUPPLY_ONLINE"]; ok &&
 			powerSupplyOnline == "1" {
@@ -152,7 +153,7 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 		for _, fd := range batteryFDs {
 			batteryUeventMap, err := getUeventMap(fd)
 			if err != nil {
-				b.sendError(err, tx, position)
+				b.sendError(err, tx)
 			}
 			for k, v := range batteryUeventMap {
 				switch k {
@@ -179,10 +180,7 @@ func (b *Battery) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 
 		capacity := float64(energyNowSum) / float64(energyFullSum) * 100
 
-		tx <- Update{
-			Block:    b.getBlock(capacity, acPluggedIn),
-			Position: position,
-		}
+		tx <- b.getBlock(capacity, acPluggedIn)
 		time.Sleep(5 * time.Second)
 	}
 }

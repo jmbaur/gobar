@@ -33,13 +33,12 @@ type Network struct {
 	ifaces []iface
 }
 
-func (n *Network) sendError(c chan Update, err error, position int) {
-	c <- Update{
-		Block: i3.Block{
-			FullText: fmt.Sprintf("network: %s", err),
-			Color:    col.Red,
-		},
-		Position: position,
+func (n *Network) sendError(c chan i3.Block, err error) {
+	c <- i3.Block{
+		Name:     "network",
+		Instance: "network",
+		FullText: fmt.Sprintf("network: %s", err),
+		Color:    col.Red,
 	}
 }
 
@@ -109,7 +108,7 @@ func (n *Network) init() error {
 	return nil
 }
 
-func (n *Network) print(c chan Update, position int) {
+func (n *Network) print(c chan i3.Block) {
 	var (
 		color            = col.Normal
 		fullTextUnjoined = []string{}
@@ -157,25 +156,24 @@ func (n *Network) print(c chan Update, position int) {
 		}
 	}
 
-	c <- Update{
-		Block: i3.Block{
-			FullText: strings.Join(fullTextUnjoined, "; "),
-			Color:    color,
-		},
-		Position: position,
+	c <- i3.Block{
+		Name:     "network",
+		Instance: "network",
+		FullText: strings.Join(fullTextUnjoined, "; "),
+		Color:    color,
 	}
 }
 
-func (n *Network) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
+func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	if valid := n.valid(); !valid {
-		n.sendError(tx, ErrInvalidPattern, position)
+		n.sendError(tx, ErrInvalidPattern)
 	}
 
 	if err := n.init(); err != nil {
-		n.sendError(tx, err, position)
+		n.sendError(tx, err)
 		return
 	}
-	n.print(tx, position)
+	n.print(tx)
 
 	linkUpdates := make(chan netlink.LinkUpdate)
 	addrUpdates := make(chan netlink.AddrUpdate)
@@ -187,12 +185,12 @@ func (n *Network) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 	}()
 
 	if err := netlink.LinkSubscribe(linkUpdates, done); err != nil {
-		n.sendError(tx, err, position)
+		n.sendError(tx, err)
 		return
 	}
 
 	if err := netlink.AddrSubscribe(addrUpdates, done); err != nil {
-		n.sendError(tx, err, position)
+		n.sendError(tx, err)
 		return
 	}
 
@@ -248,7 +246,7 @@ func (n *Network) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
 							continue
 						}
 					}
-					n.print(tx, position)
+					n.print(tx)
 				}
 			}
 		}

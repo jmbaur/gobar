@@ -48,3 +48,9 @@ type ClickEvent struct {
 	Width     int      `json:"width"`
 	Height    int      `json:"height"`
 }
+
+const (
+	LeftClick = iota + 1
+	MiddleClick
+	RightClick
+)

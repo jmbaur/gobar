@@ -1,8 +1,6 @@
 package module
 
 import (
-	"fmt"
-
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
 )
@@ -11,19 +9,13 @@ type Text struct {
 	Content string
 }
 
-func (t *Text) Run(tx chan Update, rx chan i3.ClickEvent, position int) {
-	fullText := t.Content
+func (t *Text) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	for {
-		tx <- Update{
-			Block: i3.Block{
-				Name:     "text",
-				Instance: "text",
-				FullText: fullText,
-				Color:    col.Normal,
-			},
-			Position: position,
+		tx <- i3.Block{
+			Name:     "text",
+			Instance: t.Content,
+			FullText: t.Content,
+			Color:    col.Normal,
 		}
-		event := <-rx
-		fullText = fmt.Sprintf("%+v", event)
 	}
 }

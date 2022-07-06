@@ -8,28 +8,31 @@ import (
 	"github.com/go-yaml/yaml"
 )
 
+var defaultConfig = Config{
+	Modules: []any{
+		map[any]any{
+			"module":  "network",
+			"pattern": "(en|wl)+",
+		},
+		map[any]any{
+			"module":    "datetime",
+			"format":    time.RFC1123,
+			"timezones": []string{"Local"},
+			"interval":  1,
+		},
+		map[any]any{
+			"module":  "text",
+			"content": "gobar",
+		},
+	},
+}
+
 type Config struct {
 	Modules []any `yaml:"modules"`
 }
 
 func GetConfig(flagConfigFile string) (*Config, error) {
-	config := Config{
-		Modules: []any{
-			map[any]any{
-				"module":  "network",
-				"pattern": "(en|wl)+",
-			},
-			map[any]any{
-				"module":   "datetime",
-				"format":   time.RFC1123,
-				"interval": 1,
-			},
-			map[any]any{
-				"module":  "text",
-				"content": "gobar",
-			},
-		},
-	}
+	config := defaultConfig
 
 	path, err := getConfigFilePath(flagConfigFile)
 	if err == ErrNoLookupLocation || err == ErrNoConfig {

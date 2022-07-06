@@ -10,7 +10,7 @@
     overlays.default = final: prev: {
       gobar = prev.buildGo118Module {
         pname = "gobar";
-        version = "0.1.0";
+        version = "0.1.1";
         CGO_ENABLED = 0;
         src = builtins.path { path = ./.; };
         vendorSha256 = "sha256-07mvptzyt40ag3JUwUpBC40hQi7ipvX4UWlrf36OfdM=";
