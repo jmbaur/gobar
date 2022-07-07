@@ -32,7 +32,16 @@ var (
 	capacityBucketSize = float64(100) / float64(len(batteryChars)-1)
 )
 
-type Battery struct{}
+type Battery struct {
+	batteries []batteryInfo
+}
+
+type batteryInfo struct {
+	fd           *os.File
+	verbose      bool
+	capacity     int
+	name, status string
+}
 
 // getUeventMap reads the contents of a uevent formatted file (e.g.:
 // KEY=VAL\n...) and seeks the fd pointer back to the beginning of the file so
@@ -57,130 +66,129 @@ func getUeventMap(f *os.File) (map[string]string, error) {
 	return ueventMap, nil
 }
 
-func (b *Battery) sendError(err error, c chan i3.Block) {
-	c <- i3.Block{
-		Name:     "battery",
-		Instance: "battery",
-		FullText: fmt.Sprintf("BAT: %s", err),
-		Color:    col.Red,
+func (b *Battery) print(c chan i3.Block, idx int, err error) {
+	if err != nil {
+		if idx < 0 {
+			c <- i3.Block{
+				Name:     "battery",
+				Instance: "battery",
+				FullText: fmt.Sprintf("BAT: %s", err),
+				Color:    col.Red,
+			}
+		} else {
+			name := b.batteries[idx].name
+			c <- i3.Block{
+				Name:      "battery",
+				Instance:  name,
+				FullText:  fmt.Sprintf("%s: %s", name, err),
+				ShortText: fmt.Sprintf("%s: %s", name, err),
+				Color:     col.Red,
+			}
+		}
+		return
 	}
-}
 
-func (b *Battery) getBlock(capacity float64, acPluggedIn bool) i3.Block {
-	var (
-		fullText     string
-		color        = col.Normal
-		presCapacity int
-	)
+	bat := b.batteries[idx]
 
-	roundedCapacity := math.RoundToEven(capacity)
-	presCapacity = int(roundedCapacity)
-	bucket := int(math.Floor(roundedCapacity / capacityBucketSize))
+	color := col.Normal
+
+	bucket := int(math.Floor(float64(bat.capacity) / capacityBucketSize))
 	capacityRune := batteryChars[bucket]
 
-	switch true {
-	case acPluggedIn:
-		fullText = fmt.Sprintf("BAT: %c %c %d%%", pluggedInEmoji, capacityRune, presCapacity)
-		if capacity > 80 {
-			color = col.Green
-		}
-	case capacity < 10:
+	if bat.capacity < 10 {
 		color = col.Red
-	case capacity < 20:
+	} else if bat.capacity < 20 {
 		color = col.Yellow
 	}
 
-	if fullText == "" {
-		fullText = fmt.Sprintf("BAT: %c %d%%", capacityRune, presCapacity)
+	fullText := fmt.Sprintf("%s: %c %d%% (%s)", bat.name, capacityRune, bat.capacity, bat.status)
+	shortText := fmt.Sprintf("%s: %d%%", bat.name, bat.capacity)
+	if !bat.verbose {
+		fullText = shortText
 	}
 
-	return i3.Block{
-		Name:     "battery",
-		Instance: "battery",
-		FullText: fullText,
-		Color:    color,
+	c <- i3.Block{
+		Name:      "battery",
+		Instance:  bat.name,
+		FullText:  fullText,
+		Color:     color,
+		ShortText: shortText,
+		MinWidth:  len(shortText),
+		Urgent:    bat.capacity < 5,
 	}
 }
 
 func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
-	batteries := []string{} // of the form "BAT0", "BAT1", etc
-
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
 		base := filepath.Base(path)
 		if strings.HasPrefix(base, "BAT") {
-			batteries = append(batteries, base)
+			b.batteries = append(b.batteries, batteryInfo{name: base})
 		}
 		return nil
 	}); err != nil {
-		b.sendError(err, tx)
+		b.print(tx, -1, err)
 		return
 	}
 
-	acFd, err := os.Open("/sys/class/power_supply/AC/uevent")
-	if err != nil {
-		b.sendError(err, tx)
-		return
-	}
-
-	batteryFDs := []*os.File{}
-	for _, bat := range batteries {
-		fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/uevent", bat))
+	for i, bat := range b.batteries {
+		fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/uevent", bat.name))
 		if err != nil {
-			b.sendError(err, tx)
+			b.print(tx, i, err)
 			return
 		}
-		defer fd.Close()
-		batteryFDs = append(batteryFDs, fd)
+		b.batteries[i].fd = fd
 	}
 
+	ready := make(chan struct{}, 1)
+
+	defer func() {
+		close(ready)
+		for _, bat := range b.batteries {
+			bat.fd.Close()
+		}
+	}()
+
+	go func() {
+		ready <- struct{}{}
+	}()
+
 	for {
-		var (
-			acPluggedIn   bool
-			energyFullSum int
-			energyNowSum  int
-		)
-
-		acUeventMap, err := getUeventMap(acFd)
-		if err != nil {
-			b.sendError(err, tx)
-		}
-		if powerSupplyOnline, ok := acUeventMap["POWER_SUPPLY_ONLINE"]; ok &&
-			powerSupplyOnline == "1" {
-			acPluggedIn = true
-		}
-
-	batteryLoop:
-		for _, fd := range batteryFDs {
-			batteryUeventMap, err := getUeventMap(fd)
-			if err != nil {
-				b.sendError(err, tx)
-			}
-			for k, v := range batteryUeventMap {
-				switch k {
-				case "POWER_SUPPLY_ENERGY_FULL":
-					full, err := strconv.Atoi(v)
-					if err != nil {
-						continue batteryLoop
-					}
-					energyFullSum += full
-				case "POWER_SUPPLY_ENERGY_NOW":
-					now, err := strconv.Atoi(v)
-					if err != nil {
-						continue batteryLoop
-					}
-					energyNowSum += now
-				case "POWER_SUPPLY_STATUS":
-					if !acPluggedIn {
-						acPluggedIn = (v == SysfsPowerSupplyCharging)
+		select {
+		case click := <-rx:
+			switch click.Button {
+			case i3.LeftClick, i3.RightClick:
+				for i, bat := range b.batteries {
+					if click.Instance == bat.name {
+						b.batteries[i].verbose = !bat.verbose
+						b.print(tx, i, nil)
 					}
 				}
 			}
+		case <-ready:
+			for i, bat := range b.batteries {
+				batteryUeventMap, err := getUeventMap(bat.fd)
+				if err != nil {
+					b.print(tx, i, err)
+				}
+				for k, v := range batteryUeventMap {
+					switch k {
+					case "POWER_SUPPLY_CAPACITY":
+						c, err := strconv.Atoi(v)
+						if err != nil {
+							continue
+						}
+						b.batteries[i].capacity = c
+					case "POWER_SUPPLY_STATUS":
+						b.batteries[i].status = v
+					}
+				}
 
+				b.print(tx, i, nil)
+			}
+			go func() {
+				time.Sleep(5 * time.Second)
+				ready <- struct{}{}
+			}()
 		}
-
-		capacity := float64(energyNowSum) / float64(energyFullSum) * 100
-
-		tx <- b.getBlock(capacity, acPluggedIn)
-		time.Sleep(5 * time.Second)
 	}
 }
