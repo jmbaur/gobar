@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"strings"
 
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
@@ -108,59 +107,58 @@ func (n *Network) init() error {
 	return nil
 }
 
-func (n *Network) print(c chan i3.Block) {
-	var (
-		color            = col.Normal
-		fullTextUnjoined = []string{}
-	)
-
+func (n *Network) print(c chan i3.Block, ifaceName string) {
 	if len(n.ifaces) == 0 {
-		color = col.Red
-		fullTextUnjoined = []string{"network: no interfaces"}
-	} else {
-		var hasIPv4, hasIPv6 bool
-		for _, iface := range n.ifaces {
-			name := iface.link.Attrs().Name
-
-			if iface.ipv4 != nil {
-				hasIPv4 = true
-			}
-			if iface.ipv6 != nil {
-				hasIPv6 = true
-			}
-
-			switch true {
-			case iface.ipv4 != nil && iface.ipv6 != nil:
-				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s %s", name, iface.ipv4, iface.ipv6))
-			case iface.ipv4 != nil && iface.ipv6 == nil:
-				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv4))
-			case iface.ipv4 == nil && iface.ipv6 != nil:
-				fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: %s", name, iface.ipv6))
-			default:
-				if n.patternRe != nil {
-					continue
-				} else {
-					fullTextUnjoined = append(fullTextUnjoined, fmt.Sprintf("%s: n/a", name))
-				}
-			}
+		c <- i3.Block{
+			Name:      "network",
+			Instance:  "network",
+			FullText:  "network: no interfaces",
+			ShortText: "network: no interfaces",
+			Color:     col.Red,
 		}
-
-		switch true {
-		case hasIPv6:
-			color = col.Green
-		case hasIPv4 && !hasIPv6:
-			color = col.Yellow
-		default:
-			color = col.Red
-			fullTextUnjoined = []string{"network: not connected"}
-		}
+		return
 	}
 
-	c <- i3.Block{
-		Name:     "network",
-		Instance: "network",
-		FullText: strings.Join(fullTextUnjoined, "; "),
-		Color:    color,
+	for _, iface := range n.ifaces {
+		// Don't refresh the block if the interface has no new data.
+		if ifaceName != "" && iface.link.Attrs().Name != ifaceName {
+			continue
+		}
+
+		var (
+			color    = col.Normal
+			fullText string
+			// shortText string
+		)
+
+		name := iface.link.Attrs().Name
+
+		switch true {
+		case iface.ipv4 != nil && iface.ipv6 != nil:
+			color = col.Normal
+			fullText = fmt.Sprintf("%s: %s %s", name, iface.ipv4, iface.ipv6)
+		case iface.ipv4 != nil && iface.ipv6 == nil:
+			color = col.Yellow
+			fullText = fmt.Sprintf("%s: %s", name, iface.ipv4)
+		case iface.ipv4 == nil && iface.ipv6 != nil:
+			color = col.Normal
+			fullText = fmt.Sprintf("%s: %s", name, iface.ipv6)
+		default:
+			if n.patternRe != nil {
+				continue
+			} else {
+				color = col.Red
+				fullText = fmt.Sprintf("%s: not connected", name)
+			}
+		}
+
+		c <- i3.Block{
+			Name:     "network",
+			Instance: name,
+			FullText: fullText,
+			// ShortText: shortText,
+			Color: color,
+		}
 	}
 }
 
@@ -173,7 +171,7 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 		n.sendError(tx, err)
 		return
 	}
-	n.print(tx)
+	n.print(tx, "")
 
 	linkUpdates := make(chan netlink.LinkUpdate)
 	addrUpdates := make(chan netlink.AddrUpdate)
@@ -246,7 +244,7 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 							continue
 						}
 					}
-					n.print(tx)
+					n.print(tx, iface.link.Attrs().Name)
 				}
 			}
 		}
