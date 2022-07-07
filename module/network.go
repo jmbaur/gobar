@@ -84,7 +84,7 @@ func (n *Network) init() error {
 		}
 		if len(v4addrs) > 0 {
 			sort.SliceStable(v4addrs, func(i, j int) bool {
-				return prioritizeIPv4(v4addrs[i].IP) > prioritizeIPv4(v4addrs[j].IP)
+				return prioritizeIPv4(v4addrs[i].IP) >= prioritizeIPv4(v4addrs[j].IP)
 			})
 			n.ifaces[i].ipv4 = v4addrs[0].IP
 		}
@@ -96,7 +96,7 @@ func (n *Network) init() error {
 
 		if len(v6addrs) > 0 {
 			sort.SliceStable(v6addrs, func(i, j int) bool {
-				return prioritizeIPv6(v6addrs[i].IP, v6addrs[i].Flags) > prioritizeIPv6(v6addrs[j].IP, v6addrs[j].Flags)
+				return prioritizeIPv6(v6addrs[i].IP, v6addrs[i].Flags) >= prioritizeIPv6(v6addrs[j].IP, v6addrs[j].Flags)
 			})
 			n.ifaces[i].ipv6 = v6addrs[0].IP
 		}
@@ -228,7 +228,7 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 					if addrUpdate.NewAddr {
 						if len(addrUpdate.LinkAddress.IP) == net.IPv4len && prioritizeIPv4(addrUpdate.LinkAddress.IP) >= prioritizeIPv4(n.ifaces[i].ipv4) {
 							n.ifaces[i].ipv4 = addrUpdate.LinkAddress.IP
-						} else if prioritizeIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) > prioritizeIPv6(n.ifaces[i].ipv6, 0) {
+						} else if prioritizeIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) >= prioritizeIPv6(n.ifaces[i].ipv6, 0) {
 							n.ifaces[i].ipv6 = addrUpdate.LinkAddress.IP
 						} else {
 							continue
