@@ -76,7 +76,7 @@ outer:
 		select {
 		case click := <-rx:
 			switch click.Button {
-			case i3.LeftClick, i3.MiddleClick, i3.RightClick:
+			case i3.MiddleClick:
 				if m.currentLabel == "SWAP" {
 					m.currentLabel = "MEM"
 				} else {

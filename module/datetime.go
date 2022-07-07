@@ -11,16 +11,22 @@ import (
 // Datetime is a module for printing the date and time.
 type Datetime struct {
 	// Timezones is a list of zones that will be printed (e.g. Europe/Zurich)
-	Timezones   []string
+	Timezones []string
+
 	shortFormat string
 	longFormat  string
+	verbose     bool
 }
 
 func (d *Datetime) print(tx chan i3.Block, t time.Time) {
+	longFormat := d.longFormat
+	if !d.verbose {
+		longFormat = d.shortFormat
+	}
 	tx <- i3.Block{
 		Name:      "datetime",
 		Instance:  "datetime",
-		FullText:  t.Format(d.longFormat),
+		FullText:  t.Format(longFormat),
 		Color:     col.Normal,
 		ShortText: t.Format(d.shortFormat),
 		MinWidth:  len(d.shortFormat),
@@ -28,6 +34,7 @@ func (d *Datetime) print(tx chan i3.Block, t time.Time) {
 }
 
 func (d *Datetime) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
+	d.verbose = true
 	d.shortFormat = "15:04:05 MST"
 	d.longFormat = time.RFC1123
 
@@ -64,6 +71,8 @@ func (d *Datetime) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 		case click := <-rx:
 			direction := 0
 			switch click.Button {
+			case i3.MiddleClick:
+				d.verbose = !d.verbose
 			case i3.LeftClick:
 				direction = 1
 			case i3.RightClick:

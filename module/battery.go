@@ -156,7 +156,7 @@ func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 		select {
 		case click := <-rx:
 			switch click.Button {
-			case i3.LeftClick, i3.RightClick:
+			case i3.MiddleClick:
 				for i, bat := range b.batteries {
 					if click.Instance == bat.name {
 						b.batteries[i].verbose = !bat.verbose

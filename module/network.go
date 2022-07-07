@@ -219,7 +219,7 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 		select {
 		case click := <-rx:
 			switch click.Button {
-			case i3.LeftClick, i3.RightClick:
+			case i3.MiddleClick:
 				for i, iface := range n.ifaces {
 					if iface.link.Attrs().Name == click.Instance {
 						n.ifaces[i].hideIP = !n.ifaces[i].hideIP
