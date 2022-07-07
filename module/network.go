@@ -38,15 +38,6 @@ type Network struct {
 	ifaces    []iface
 }
 
-func (n *Network) sendError(c chan i3.Block, err error) {
-	c <- i3.Block{
-		Name:     "network",
-		Instance: "network",
-		FullText: fmt.Sprintf("network: %s", err),
-		Color:    col.Red,
-	}
-}
-
 func (n *Network) valid() bool {
 	return (n.Pattern != nil && n.Interface == nil) ||
 		(n.Pattern == nil && n.Interface != nil)
@@ -112,13 +103,25 @@ func (n *Network) init() error {
 	return nil
 }
 
-func (n *Network) print(c chan i3.Block, ifaceName string) {
+func (n *Network) print(c chan i3.Block, ifaceName string, err error) {
+	if err != nil {
+		c <- i3.Block{
+			Name:      "network",
+			Instance:  "network",
+			FullText:  fmt.Sprintf("network: %s", err),
+			ShortText: "network: error",
+			MinWidth:  len("network: error"),
+			Color:     col.Red,
+		}
+		return
+	}
 	if len(n.ifaces) == 0 {
 		c <- i3.Block{
 			Name:      "network",
 			Instance:  "network",
 			FullText:  "network: no interfaces",
 			ShortText: "network: no interfaces",
+			MinWidth:  len("network: no interfaces"),
 			Color:     col.Red,
 		}
 		return
@@ -181,16 +184,17 @@ func (n *Network) print(c chan i3.Block, ifaceName string) {
 }
 
 func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
-	if valid := n.valid(); !valid {
-		n.sendError(tx, ErrInvalidPattern)
+	if !n.valid() {
+		n.print(tx, "", ErrInvalidPattern)
+		return
 	}
 
 	if err := n.init(); err != nil {
-		n.sendError(tx, err)
+		n.print(tx, "", err)
 		return
 	}
 	// Print initial info for all configured network interfaces.
-	n.print(tx, allInterfaces)
+	n.print(tx, allInterfaces, nil)
 
 	linkUpdates := make(chan netlink.LinkUpdate)
 	addrUpdates := make(chan netlink.AddrUpdate)
@@ -202,12 +206,12 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	}()
 
 	if err := netlink.LinkSubscribe(linkUpdates, done); err != nil {
-		n.sendError(tx, err)
+		n.print(tx, "", err)
 		return
 	}
 
 	if err := netlink.AddrSubscribe(addrUpdates, done); err != nil {
-		n.sendError(tx, err)
+		n.print(tx, "", err)
 		return
 	}
 
@@ -219,6 +223,7 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 				for i, iface := range n.ifaces {
 					if iface.link.Attrs().Name == click.Instance {
 						n.ifaces[i].hideIP = !n.ifaces[i].hideIP
+						n.print(tx, click.Instance, nil)
 					}
 				}
 			}
@@ -276,7 +281,7 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 							continue
 						}
 					}
-					n.print(tx, iface.link.Attrs().Name)
+					n.print(tx, iface.link.Attrs().Name, nil)
 				}
 			}
 		}
