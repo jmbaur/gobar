@@ -250,25 +250,37 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 }
 
 func prioritizeIPv4(ip net.IP) int {
+	score := 0
 	switch true {
 	case ip.IsGlobalUnicast():
-		return 100
+		score += 100
 	case ip.IsPrivate():
-		return 90
-	default:
-		return 0
+		score += 90
 	}
+	return score
 }
 
 func prioritizeIPv6(ip net.IP, flags int) int {
-	switch true {
-	case !ip.IsPrivate() && ip.IsGlobalUnicast() && flags&unix.IFA_F_MANAGETEMPADDR == 0:
-		return 100
-	case !ip.IsPrivate() && ip.IsGlobalUnicast():
-		return 90
-	case ip.IsPrivate():
-		return 10
-	default:
-		return 0
+	score := 0
+
+	if flags&unix.IFA_F_DEPRECATED > 0 {
+		score -= 1000
 	}
+	if flags&unix.IFA_F_TEMPORARY > 0 {
+		score += 300
+	}
+	if flags&unix.IFA_F_MANAGETEMPADDR > 0 {
+		score += 10
+	}
+	if !ip.IsPrivate() && ip.IsGlobalUnicast() {
+		score += 100
+	}
+	if !ip.IsPrivate() && ip.IsGlobalUnicast() {
+		score += 90
+	}
+	if ip.IsPrivate() {
+		score += 10
+	}
+
+	return score
 }
