@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sort"
 
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
@@ -81,26 +82,23 @@ func (n *Network) init() error {
 		if err != nil {
 			return err
 		}
-		for _, addr := range v4addrs {
-			if chooseIPv4(addr.IP) {
-				n.ifaces[i].ipv4 = addr.IP
-			}
+		if len(v4addrs) > 0 {
+			sort.SliceStable(v4addrs, func(i, j int) bool {
+				return prioritizeIPv4(v4addrs[i].IP) > prioritizeIPv4(v4addrs[j].IP)
+			})
+			n.ifaces[i].ipv4 = v4addrs[0].IP
 		}
 
 		v6addrs, err := netlink.AddrList(iface.link, unix.AF_INET6)
 		if err != nil {
 			return err
 		}
-		var fallbackIP net.IP
-		for _, addr := range v6addrs {
-			if chosen, fallback := chooseIPv6(addr.IP, addr.Flags); chosen {
-				n.ifaces[i].ipv6 = addr.IP
-			} else if fallback {
-				fallbackIP = addr.IP
-			}
-		}
-		if n.ifaces[i].ipv6 == nil && fallbackIP != nil {
-			n.ifaces[i].ipv6 = fallbackIP
+
+		if len(v6addrs) > 0 {
+			sort.SliceStable(v6addrs, func(i, j int) bool {
+				return prioritizeIPv6(v6addrs[i].IP, v6addrs[i].Flags) > prioritizeIPv6(v6addrs[j].IP, v6addrs[j].Flags)
+			})
+			n.ifaces[i].ipv6 = v6addrs[0].IP
 		}
 	}
 
@@ -228,9 +226,9 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 			for i, iface := range n.ifaces {
 				if addrUpdate.LinkIndex == iface.link.Attrs().Index {
 					if addrUpdate.NewAddr {
-						if len(addrUpdate.LinkAddress.IP) == net.IPv4len && chooseIPv4(addrUpdate.LinkAddress.IP) {
+						if len(addrUpdate.LinkAddress.IP) == net.IPv4len && prioritizeIPv4(addrUpdate.LinkAddress.IP) >= prioritizeIPv4(n.ifaces[i].ipv4) {
 							n.ifaces[i].ipv4 = addrUpdate.LinkAddress.IP
-						} else if chosen, fallback := chooseIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags); chosen || fallback {
+						} else if prioritizeIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) > prioritizeIPv6(n.ifaces[i].ipv6, 0) {
 							n.ifaces[i].ipv6 = addrUpdate.LinkAddress.IP
 						} else {
 							continue
@@ -251,15 +249,26 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	}
 }
 
-func chooseIPv4(ip net.IP) bool {
-	return ip.IsPrivate()
+func prioritizeIPv4(ip net.IP) int {
+	switch true {
+	case ip.IsGlobalUnicast():
+		return 100
+	case ip.IsPrivate():
+		return 90
+	default:
+		return 0
+	}
 }
 
-// chooseIPv6 returns whether the IP should be chosen and whether it can be
-// used as a fallback if none other are chosen.
-func chooseIPv6(ip net.IP, flags int) (bool, bool) {
-	if flags&unix.IFA_F_MANAGETEMPADDR > 0 {
-		return false, true
+func prioritizeIPv6(ip net.IP, flags int) int {
+	switch true {
+	case !ip.IsPrivate() && ip.IsGlobalUnicast() && flags&unix.IFA_F_MANAGETEMPADDR == 0:
+		return 100
+	case !ip.IsPrivate() && ip.IsGlobalUnicast():
+		return 90
+	case ip.IsPrivate():
+		return 10
+	default:
+		return 0
 	}
-	return !ip.IsPrivate() && ip.IsGlobalUnicast(), false
 }
