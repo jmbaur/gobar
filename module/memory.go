@@ -58,9 +58,12 @@ func (m *Memory) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 		m.print(tx, err)
 		return
 	}
-	defer f.Close()
 
 	ready := make(chan struct{}, 1)
+	defer func() {
+		f.Close()
+		close(ready)
+	}()
 
 	go func() {
 		ready <- struct{}{}

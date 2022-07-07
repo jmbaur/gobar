@@ -47,6 +47,7 @@ func (d *Datetime) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	}
 
 	ready := make(chan struct{}, 1)
+	defer close(ready)
 
 	// Make sure the first time through the loop, the content is printed
 	// immediately.
