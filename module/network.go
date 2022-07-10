@@ -287,17 +287,30 @@ func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 }
 
 func prioritizeIPv4(ip net.IP) int {
+	if ip == nil {
+		return -1
+	}
+
 	score := 0
-	switch true {
-	case ip.IsGlobalUnicast():
+
+	if ip.IsGlobalUnicast() {
 		score += 100
-	case ip.IsPrivate():
+	}
+	if ip.IsPrivate() {
 		score += 90
 	}
+	if ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() {
+		score -= 1000
+	}
+
 	return score
 }
 
 func prioritizeIPv6(ip net.IP, flags int) int {
+	if ip == nil {
+		return -1
+	}
+
 	score := 0
 
 	if flags&unix.IFA_F_DEPRECATED > 0 {
@@ -317,6 +330,9 @@ func prioritizeIPv6(ip net.IP, flags int) int {
 	}
 	if ip.IsPrivate() {
 		score += 10
+	}
+	if ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() {
+		score -= 1000
 	}
 
 	return score

@@ -29,12 +29,11 @@ type Datetime struct {
 }
 
 func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
-	longFormat := d.longFormat
-
 	blocks := []i3.Block{}
 
 	if d.ShowAllTimezones {
 		for _, locInfo := range d.locations {
+			longFormat := d.longFormat
 			if !locInfo.verbose {
 				longFormat = d.shortFormat
 			}
@@ -48,6 +47,10 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 			})
 		}
 	} else {
+		longFormat := d.longFormat
+		if !d.locations[d.currentLocation].verbose {
+			longFormat = d.shortFormat
+		}
 		blocks = []i3.Block{{
 			Name:      "datetime",
 			Instance:  "datetime",
