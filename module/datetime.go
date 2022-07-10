@@ -102,20 +102,15 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 				direction = -1
 			}
 
-			if d.ShowAllTimezones {
-				continue
-			}
-
 			idx := slices.Index(d.locations, d.currentLocation)
-			if idx < 0 {
-				continue
-			}
 
 			idx += direction
 			if idx >= len(d.locations) {
 				idx = 0
 			} else if idx < 0 {
 				idx = len(d.locations) - 1
+			} else {
+				idx = 0 // fallback
 			}
 			d.currentLocation = d.locations[idx]
 
