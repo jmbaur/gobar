@@ -6,6 +6,7 @@ import (
 
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
+	"golang.org/x/exp/slices"
 )
 
 type locationInfo struct {
@@ -105,7 +106,13 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 			direction := 0
 			switch click.Button {
 			case i3.MiddleClick:
-				d.locations[d.currentLocation].verbose = !d.locations[d.currentLocation].verbose
+				idx := slices.IndexFunc(d.locations, func(loc locationInfo) bool {
+					return loc.loc.String() == click.Instance
+				})
+				if idx < 0 {
+					continue
+				}
+				d.locations[idx].verbose = !d.locations[idx].verbose
 			case i3.LeftClick:
 				direction = 1
 			case i3.RightClick:
