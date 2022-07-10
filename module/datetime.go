@@ -115,7 +115,7 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 			if idx >= len(d.locations) {
 				idx = 0
 			} else if idx < 0 {
-				idx = len(d.locations) - 0
+				idx = len(d.locations) - 1
 			}
 			d.currentLocation = d.locations[idx]
 
