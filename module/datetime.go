@@ -53,7 +53,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 		}
 		blocks = []i3.Block{{
 			Name:      "datetime",
-			Instance:  "datetime",
+			Instance:  d.locations[d.currentLocation].loc.String(),
 			FullText:  t.In(d.locations[d.currentLocation].loc).Format(longFormat),
 			Color:     col.Normal,
 			ShortText: t.In(d.locations[d.currentLocation].loc).Format(d.shortFormat),
@@ -112,6 +112,7 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 				idx := slices.IndexFunc(d.locations, func(loc locationInfo) bool {
 					return loc.loc.String() == click.Instance
 				})
+				log.Println(idx)
 				if idx < 0 {
 					continue
 				}
