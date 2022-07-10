@@ -21,14 +21,14 @@ type Memory struct {
 	currentLabel           string
 }
 
-func (m *Memory) print(c chan i3.Block, err error) {
+func (m *Memory) print(c chan []i3.Block, err error) {
 	if err != nil {
-		c <- i3.Block{
+		c <- []i3.Block{{
 			Name:     "memory",
 			Instance: "memory",
 			FullText: fmt.Sprintf("MEM: %s", err),
 			Color:    col.Red,
-		}
+		}}
 	} else {
 		var percent float32
 		if m.currentLabel == "SWAP" {
@@ -43,16 +43,16 @@ func (m *Memory) print(c chan i3.Block, err error) {
 		case percent > 75:
 			color = col.Red
 		}
-		c <- i3.Block{
+		c <- []i3.Block{{
 			Name:     "memory",
 			Instance: "memory",
 			FullText: fmt.Sprintf("%s: %0.2f%%", m.currentLabel, percent),
 			Color:    color,
-		}
+		}}
 	}
 }
 
-func (m *Memory) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
+func (m *Memory) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
 		m.print(tx, err)

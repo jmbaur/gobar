@@ -3,4 +3,4 @@
 # 'wlp1s0', useful for matching a wireless or wired network interface.
 modules:
   - module: "network"
-    pattern: "(en|wl)+"
+    pattern: "(en|wl|tun)+"

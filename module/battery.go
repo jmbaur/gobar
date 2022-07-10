@@ -66,59 +66,50 @@ func getUeventMap(f *os.File) (map[string]string, error) {
 	return ueventMap, nil
 }
 
-func (b *Battery) print(c chan i3.Block, idx int, err error) {
+func (b *Battery) print(c chan []i3.Block, err error) {
 	if err != nil {
-		if idx < 0 {
-			c <- i3.Block{
-				Name:     "battery",
-				Instance: "battery",
-				FullText: fmt.Sprintf("BAT: %s", err),
-				Color:    col.Red,
-			}
-		} else {
-			name := b.batteries[idx].name
-			c <- i3.Block{
-				Name:      "battery",
-				Instance:  name,
-				FullText:  fmt.Sprintf("%s: %s", name, err),
-				ShortText: fmt.Sprintf("%s: %s", name, err),
-				Color:     col.Red,
-			}
-		}
+		c <- []i3.Block{{
+			Name:     "battery",
+			Instance: "battery",
+			FullText: fmt.Sprintf("BAT: %s", err),
+			Color:    col.Red,
+		}}
 		return
 	}
 
-	bat := b.batteries[idx]
+	blocks := []i3.Block{}
+	for _, bat := range b.batteries {
+		color := col.Normal
 
-	color := col.Normal
+		bucket := int(math.Floor(float64(bat.capacity) / capacityBucketSize))
+		capacityRune := batteryChars[bucket]
 
-	bucket := int(math.Floor(float64(bat.capacity) / capacityBucketSize))
-	capacityRune := batteryChars[bucket]
+		if bat.capacity < 10 {
+			color = col.Red
+		} else if bat.capacity < 20 {
+			color = col.Yellow
+		}
 
-	if bat.capacity < 10 {
-		color = col.Red
-	} else if bat.capacity < 20 {
-		color = col.Yellow
+		fullText := fmt.Sprintf("%s: %c %d%% (%s)", bat.name, capacityRune, bat.capacity, bat.status)
+		shortText := fmt.Sprintf("%s: %d%%", bat.name, bat.capacity)
+		if !bat.verbose {
+			fullText = shortText
+		}
+
+		blocks = append(blocks, i3.Block{
+			Name:      "battery",
+			Instance:  bat.name,
+			FullText:  fullText,
+			Color:     color,
+			ShortText: shortText,
+			MinWidth:  len(shortText),
+			Urgent:    bat.capacity < 5,
+		})
 	}
-
-	fullText := fmt.Sprintf("%s: %c %d%% (%s)", bat.name, capacityRune, bat.capacity, bat.status)
-	shortText := fmt.Sprintf("%s: %d%%", bat.name, bat.capacity)
-	if !bat.verbose {
-		fullText = shortText
-	}
-
-	c <- i3.Block{
-		Name:      "battery",
-		Instance:  bat.name,
-		FullText:  fullText,
-		Color:     color,
-		ShortText: shortText,
-		MinWidth:  len(shortText),
-		Urgent:    bat.capacity < 5,
-	}
+	c <- blocks
 }
 
-func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
+func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
 		base := filepath.Base(path)
 		if strings.HasPrefix(base, "BAT") {
@@ -126,14 +117,14 @@ func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 		}
 		return nil
 	}); err != nil {
-		b.print(tx, -1, err)
+		b.print(tx, err)
 		return
 	}
 
 	for i, bat := range b.batteries {
 		fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/uevent", bat.name))
 		if err != nil {
-			b.print(tx, i, err)
+			b.print(tx, err)
 			return
 		}
 		b.batteries[i].fd = fd
@@ -160,7 +151,7 @@ func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 				for i, bat := range b.batteries {
 					if click.Instance == bat.name {
 						b.batteries[i].verbose = !bat.verbose
-						b.print(tx, i, nil)
+						b.print(tx, nil)
 					}
 				}
 			}
@@ -168,7 +159,7 @@ func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 			for i, bat := range b.batteries {
 				batteryUeventMap, err := getUeventMap(bat.fd)
 				if err != nil {
-					b.print(tx, i, err)
+					b.print(tx, err)
 				}
 				for k, v := range batteryUeventMap {
 					switch k {
@@ -183,8 +174,10 @@ func (b *Battery) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 					}
 				}
 
-				b.print(tx, i, nil)
 			}
+
+			b.print(tx, nil)
+
 			go func() {
 				time.Sleep(5 * time.Second)
 				ready <- struct{}{}

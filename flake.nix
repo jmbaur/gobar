@@ -10,10 +10,10 @@
     overlays.default = final: prev: {
       gobar = prev.buildGo118Module {
         pname = "gobar";
-        version = "0.1.1";
+        version = "0.1.2";
         CGO_ENABLED = 0;
         src = builtins.path { path = ./.; };
-        vendorSha256 = "sha256-XxVf2omxzju9QuWtZB4Peg0dvWw6MGjcLVfaksTaOcU=";
+        vendorSha256 = "sha256-2AYrFIFa+MKXMCSSC5j9W7yBcwklmcbh+prgyd4HQHs=";
       };
     };
   } // flake-utils.lib.eachDefaultSystem (system:

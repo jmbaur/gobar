@@ -10,6 +10,7 @@ import (
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sys/unix"
 )
 
@@ -17,8 +18,6 @@ var (
 	ErrInvalidPattern = errors.New("invalid interface pattern string")
 	ErrNoMatch        = errors.New("no matching interface")
 )
-
-var allInterfaces = ""
 
 type iface struct {
 	hideIP   bool
@@ -59,7 +58,7 @@ func (n *Network) init() error {
 		for _, link := range links {
 			if matched := n.patternRe.MatchString(link.Attrs().Name); matched {
 				matchedNone = false
-				n.ifaces = append(n.ifaces, iface{link: link})
+				n.ifaces = append(n.ifaces, iface{link: link, hideIP: true})
 			}
 		}
 		if matchedNone {
@@ -70,7 +69,7 @@ func (n *Network) init() error {
 		if err != nil {
 			return err
 		}
-		n.ifaces = append(n.ifaces, iface{link: link})
+		n.ifaces = append(n.ifaces, iface{link: link, hideIP: true})
 	}
 
 	for i, iface := range n.ifaces {
@@ -103,36 +102,33 @@ func (n *Network) init() error {
 	return nil
 }
 
-func (n *Network) print(c chan i3.Block, ifaceName string, err error) {
+func (n *Network) print(c chan []i3.Block, err error) {
 	if err != nil {
-		c <- i3.Block{
+		c <- []i3.Block{{
 			Name:      "network",
 			Instance:  "network",
 			FullText:  fmt.Sprintf("network: %s", err),
 			ShortText: "network: error",
 			MinWidth:  len("network: error"),
 			Color:     col.Red,
-		}
+		}}
 		return
 	}
 	if len(n.ifaces) == 0 {
-		c <- i3.Block{
+		c <- []i3.Block{{
 			Name:      "network",
 			Instance:  "network",
 			FullText:  "network: no interfaces",
 			ShortText: "network: no interfaces",
 			MinWidth:  len("network: no interfaces"),
 			Color:     col.Red,
-		}
+		}}
 		return
 	}
 
-	for _, iface := range n.ifaces {
-		// Don't refresh the block if the interface has no new data.
-		if ifaceName != allInterfaces && iface.link.Attrs().Name != ifaceName {
-			continue
-		}
+	blocks := []i3.Block{}
 
+	for _, iface := range n.ifaces {
 		var (
 			color     = col.Normal
 			fullText  string
@@ -172,29 +168,32 @@ func (n *Network) print(c chan i3.Block, ifaceName string, err error) {
 			fullText = shortText
 		}
 
-		c <- i3.Block{
+		blocks = append(blocks, i3.Block{
 			Name:      "network",
 			Instance:  name,
 			FullText:  fullText,
 			ShortText: shortText,
 			MinWidth:  len(shortText),
 			Color:     color,
-		}
+		})
 	}
+
+	c <- blocks
 }
 
-func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
+func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 	if !n.valid() {
-		n.print(tx, "", ErrInvalidPattern)
+		n.print(tx, ErrInvalidPattern)
 		return
 	}
 
 	if err := n.init(); err != nil {
-		n.print(tx, "", err)
+		n.print(tx, err)
 		return
 	}
+
 	// Print initial info for all configured network interfaces.
-	n.print(tx, allInterfaces, nil)
+	n.print(tx, nil)
 
 	linkUpdates := make(chan netlink.LinkUpdate)
 	addrUpdates := make(chan netlink.AddrUpdate)
@@ -206,12 +205,12 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 	}()
 
 	if err := netlink.LinkSubscribe(linkUpdates, done); err != nil {
-		n.print(tx, "", err)
+		n.print(tx, err)
 		return
 	}
 
 	if err := netlink.AddrSubscribe(addrUpdates, done); err != nil {
-		n.print(tx, "", err)
+		n.print(tx, err)
 		return
 	}
 
@@ -223,67 +222,66 @@ func (n *Network) Run(tx chan i3.Block, rx chan i3.ClickEvent) {
 				for i, iface := range n.ifaces {
 					if iface.link.Attrs().Name == click.Instance {
 						n.ifaces[i].hideIP = !n.ifaces[i].hideIP
-						n.print(tx, click.Instance, nil)
+						n.print(tx, nil)
 					}
 				}
 			}
 		case linkUpdate := <-linkUpdates:
-			if n.patternRe == nil {
+			if n.patternRe == nil || !n.patternRe.MatchString(linkUpdate.Link.Attrs().Name) {
 				continue
 			}
-			if !n.patternRe.MatchString(linkUpdate.Link.Attrs().Name) {
-				continue
-			}
+
+			idx := slices.IndexFunc(n.ifaces, func(i iface) bool {
+				return int(linkUpdate.Index) == i.link.Attrs().Index
+			})
 			switch linkUpdate.Header.Type {
 			case unix.RTM_NEWLINK:
-				var existing bool
-				for _, iface := range n.ifaces {
-					if iface.link.Attrs().Index == linkUpdate.Link.Attrs().Index {
-						existing = true
-					}
-				}
-				if !existing {
-					n.ifaces = append(n.ifaces, iface{link: linkUpdate.Link})
+				if idx < 0 {
+					n.ifaces = append(n.ifaces, iface{link: linkUpdate.Link, hideIP: true})
 				}
 			case unix.RTM_DELLINK:
-				for i, iface := range n.ifaces {
-					if iface.link.Attrs().Index == linkUpdate.Link.Attrs().Index {
-						if i == len(n.ifaces)-1 {
-							n.ifaces = append(n.ifaces[0:i], n.ifaces[i+1:]...)
-						} else {
-							n.ifaces = n.ifaces[0:i]
-						}
-						break
-					}
+				if idx < 0 {
+					continue
+				}
+
+				if idx == len(n.ifaces)-1 {
+					n.ifaces = n.ifaces[0:idx]
+				} else {
+					n.ifaces = append(n.ifaces[0:idx], n.ifaces[idx+1:]...)
 				}
 			}
 		case addrUpdate := <-addrUpdates:
-			for i, iface := range n.ifaces {
-				if addrUpdate.LinkIndex == iface.link.Attrs().Index {
-					if addrUpdate.NewAddr {
-						if len(addrUpdate.LinkAddress.IP) == net.IPv4len && prioritizeIPv4(addrUpdate.LinkAddress.IP) >= prioritizeIPv4(n.ifaces[i].ipv4) {
-							n.ifaces[i].ipv4 = addrUpdate.LinkAddress.IP
-							n.ifaces[i].ipv4Mask = addrUpdate.LinkAddress.Mask
-						} else if prioritizeIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) >= prioritizeIPv6(n.ifaces[i].ipv6, 0) {
-							n.ifaces[i].ipv6 = addrUpdate.LinkAddress.IP
-							n.ifaces[i].ipv6Mask = addrUpdate.LinkAddress.Mask
-						} else {
-							continue
-						}
-					} else {
-						if iface.ipv4.Equal(addrUpdate.LinkAddress.IP) {
-							n.ifaces[i].ipv4 = nil
-							n.ifaces[i].ipv4Mask = nil
-						} else if iface.ipv6.Equal(addrUpdate.LinkAddress.IP) {
-							n.ifaces[i].ipv6 = nil
-							n.ifaces[i].ipv6Mask = nil
-						} else {
-							continue
-						}
-					}
-					n.print(tx, iface.link.Attrs().Name, nil)
+			idx := slices.IndexFunc(n.ifaces, func(i iface) bool {
+				return i.link.Attrs().Index == addrUpdate.LinkIndex
+			})
+			if idx < 0 {
+				continue
+			}
+
+			iface := n.ifaces[idx]
+
+			if addrUpdate.NewAddr {
+				if len(addrUpdate.LinkAddress.IP) == net.IPv4len && prioritizeIPv4(addrUpdate.LinkAddress.IP) >= prioritizeIPv4(n.ifaces[idx].ipv4) {
+					n.ifaces[idx].ipv4 = addrUpdate.LinkAddress.IP
+					n.ifaces[idx].ipv4Mask = addrUpdate.LinkAddress.Mask
+				} else if prioritizeIPv6(addrUpdate.LinkAddress.IP, addrUpdate.Flags) >= prioritizeIPv6(n.ifaces[idx].ipv6, 0) {
+					n.ifaces[idx].ipv6 = addrUpdate.LinkAddress.IP
+					n.ifaces[idx].ipv6Mask = addrUpdate.LinkAddress.Mask
+				} else {
+					continue
+				}
+			} else {
+				if iface.ipv4.Equal(addrUpdate.LinkAddress.IP) {
+					n.ifaces[idx].ipv4 = nil
+					n.ifaces[idx].ipv4Mask = nil
+				} else if iface.ipv6.Equal(addrUpdate.LinkAddress.IP) {
+					n.ifaces[idx].ipv6 = nil
+					n.ifaces[idx].ipv6Mask = nil
+				} else {
+					continue
 				}
 			}
+			n.print(tx, nil)
 		}
 	}
 }

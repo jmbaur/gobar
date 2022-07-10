@@ -12,11 +12,12 @@ import (
 	"github.com/jmbaur/gobar/config"
 	"github.com/jmbaur/gobar/i3"
 	"github.com/mitchellh/mapstructure"
+	"golang.org/x/exp/slices"
 )
 
 // Module is a thing that can print to a block on the i3bar.
 type Module interface {
-	Run(tx chan i3.Block, rx chan i3.ClickEvent)
+	Run(tx chan []i3.Block, rx chan i3.ClickEvent)
 }
 
 var header = i3.Header{
@@ -137,7 +138,7 @@ func Run(cfg *config.Config) error {
 	fmt.Printf("%s\n", headerData)
 
 	done := make(chan struct{}, 1)
-	blocksChan := make(chan i3.Block)
+	blocksChan := make(chan []i3.Block)
 	defer func() {
 		close(done)
 		close(blocksChan)
@@ -158,45 +159,33 @@ func Run(cfg *config.Config) error {
 
 	isDone := false
 	fmt.Printf("[\n")
+outer:
 	for {
 		select {
-		case b := <-blocksChan:
-			if b.Name == "" || b.Instance == "" {
-				log.Println("block was missing name and/or instance")
-				continue
+		case blocks := <-blocksChan:
+			if len(blocks) == 0 {
+				continue outer
 			}
-			pos := -1
-			for i, modState := range state {
-				if modState.name == b.Name {
-					pos = i
-				}
-			}
+
+			pos := slices.IndexFunc(state, func(modState moduleState) bool {
+				return modState.name == blocks[0].Name
+			})
 			if pos == -1 {
-				continue
+				continue outer
 			}
-			if len(state[pos].blocks) == 0 {
-				state[pos].blocks = []i3.Block{b}
-			}
-			var found bool
-			for i, currentBlock := range state[pos].blocks {
-				if b.Instance == currentBlock.Instance {
-					found = true
-					state[pos].blocks[i] = b
-				}
-			}
-			if !found {
-				state[pos].blocks = append(state[pos].blocks, b)
-			}
+
+			state[pos].blocks = blocks
 		case <-done:
 			isDone = true
 		}
+
 		blockSlice := []i3.Block{}
 		for _, modState := range state {
 			blockSlice = append(blockSlice, modState.blocks...)
 		}
 		data, err := json.Marshal(blockSlice)
 		if err != nil {
-			log.Println(err)
+			log.Printf("failed to marshal blocks to JSON: %v\n", err)
 			continue
 		}
 
