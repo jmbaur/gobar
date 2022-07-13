@@ -81,8 +81,10 @@ func (n *Network) init() error {
 			sort.SliceStable(v4addrs, func(i, j int) bool {
 				return prioritizeIPv4(v4addrs[i].IP) >= prioritizeIPv4(v4addrs[j].IP)
 			})
-			n.ifaces[i].ipv4 = v4addrs[0].IP
-			n.ifaces[i].ipv4Mask = v4addrs[0].Mask
+			if prioritizeIPv4(v4addrs[0].IP) > 0 {
+				n.ifaces[i].ipv4 = v4addrs[0].IP
+				n.ifaces[i].ipv4Mask = v4addrs[0].Mask
+			}
 		}
 
 		v6addrs, err := netlink.AddrList(iface.link, unix.AF_INET6)
@@ -94,8 +96,10 @@ func (n *Network) init() error {
 			sort.SliceStable(v6addrs, func(i, j int) bool {
 				return prioritizeIPv6(v6addrs[i].IP, v6addrs[i].Flags) >= prioritizeIPv6(v6addrs[j].IP, v6addrs[j].Flags)
 			})
-			n.ifaces[i].ipv6 = v6addrs[0].IP
-			n.ifaces[i].ipv6Mask = v6addrs[0].Mask
+			if prioritizeIPv6(v6addrs[0].IP, v6addrs[0].Flags) > 0 {
+				n.ifaces[i].ipv6 = v6addrs[0].IP
+				n.ifaces[i].ipv6Mask = v6addrs[0].Mask
+			}
 		}
 	}
 
