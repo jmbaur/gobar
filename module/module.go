@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -45,7 +46,9 @@ func parseStdin(state []moduleState) {
 		}
 		b, err := r.ReadBytes('}')
 		if err != nil {
-			log.Printf("error reading to closing brace: %v", err)
+			if err != io.EOF {
+				log.Printf("error reading to closing brace: %v", err)
+			}
 			break
 		}
 		var event i3.ClickEvent
