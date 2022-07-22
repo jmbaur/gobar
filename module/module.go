@@ -162,19 +162,18 @@ func Run(cfg *config.Config) error {
 
 	isDone := false
 	fmt.Printf("[\n")
-outer:
 	for {
 		select {
 		case blocks := <-blocksChan:
 			if len(blocks) == 0 {
-				continue outer
+				continue
 			}
 
 			pos := slices.IndexFunc(state, func(modState moduleState) bool {
 				return modState.name == blocks[0].Name
 			})
 			if pos == -1 {
-				continue outer
+				continue
 			}
 
 			state[pos].blocks = blocks
