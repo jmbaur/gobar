@@ -132,6 +132,7 @@ func (n *Network) print(c chan []i3.Block, err error) {
 
 	blocks := []i3.Block{}
 
+	disconnectedInterfaces := 0
 	for _, iface := range n.ifaces {
 		var (
 			color     = col.Normal
@@ -159,6 +160,7 @@ func (n *Network) print(c chan []i3.Block, err error) {
 			shortText = fmt.Sprintf("%s: %s/%d", name, iface.ipv6.Mask(iface.ipv6Mask), v6Size)
 			fullText = fmt.Sprintf("%s: %s", name, iface.ipv6)
 		default:
+			disconnectedInterfaces++
 			if n.patternRe != nil {
 				continue
 			} else {
@@ -179,6 +181,17 @@ func (n *Network) print(c chan []i3.Block, err error) {
 			ShortText: shortText,
 			MinWidth:  len(shortText),
 			Color:     color,
+		})
+	}
+
+	if n.patternRe != nil && len(n.ifaces) == disconnectedInterfaces {
+		blocks = append(blocks, i3.Block{
+			Name:      "network",
+			Instance:  "network",
+			FullText:  "No connected interfaces",
+			ShortText: "No connected interfaces",
+			MinWidth:  len("No connected interfaces"),
+			Color:     col.Red,
 		})
 	}
 
