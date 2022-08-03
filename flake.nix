@@ -6,14 +6,14 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }@inputs: {
+  outputs = inputs: with inputs; {
     overlays.default = final: prev: {
-      gobar = prev.buildGo118Module {
+      gobar = prev.buildGoModule {
         pname = "gobar";
         version = "0.1.2";
         CGO_ENABLED = 0;
-        src = builtins.path { path = ./.; };
-        vendorSha256 = "sha256-YkdoCn5Jz1sVJyGwomoJ/48ZYnIKoRfmv6OBlcu1Cw4=";
+        src = ./.;
+        vendorSha256 = "sha256-iAyVE3TZJvv9QG4SWGc7hQDqXd0g+1Haac1mk9toSdY=";
       };
     };
   } // flake-utils.lib.eachDefaultSystem (system:
