@@ -10,8 +10,7 @@ import (
 )
 
 type locationInfo struct {
-	loc     *time.Location
-	verbose bool
+	loc *time.Location
 }
 
 // Datetime is a module for printing the date and time.
@@ -26,6 +25,7 @@ type Datetime struct {
 	locations       []locationInfo
 	shortFormat     string
 	longFormat      string
+	verbose         bool
 }
 
 func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
@@ -34,7 +34,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 	if d.ShowAllTimezones {
 		for _, locInfo := range d.locations {
 			longFormat := d.longFormat
-			if !locInfo.verbose {
+			if !d.verbose {
 				longFormat = d.shortFormat
 			}
 			blocks = append(blocks, i3.Block{
@@ -48,7 +48,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 		}
 	} else {
 		longFormat := d.longFormat
-		if !d.locations[d.currentLocation].verbose {
+		if !d.verbose {
 			longFormat = d.shortFormat
 		}
 		blocks = []i3.Block{{
@@ -89,8 +89,7 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 		}
 		tzMap[name] = struct{}{}
 		d.locations = append(d.locations, locationInfo{
-			loc:     loc,
-			verbose: false,
+			loc: loc,
 		})
 	}
 
@@ -116,7 +115,7 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 				if idx < 0 {
 					continue
 				}
-				d.locations[idx].verbose = !d.locations[idx].verbose
+				d.verbose = !d.verbose
 			case i3.LeftClick:
 				direction = 1
 			case i3.RightClick:

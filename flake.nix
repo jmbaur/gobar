@@ -7,13 +7,13 @@
   };
 
   outputs = inputs: with inputs; {
-    overlays.default = final: prev: {
+    overlays.default = _: prev: {
       gobar = prev.buildGoModule {
         pname = "gobar";
         version = "0.1.2";
         CGO_ENABLED = 0;
         src = ./.;
-        vendorSha256 = "sha256-iAyVE3TZJvv9QG4SWGc7hQDqXd0g+1Haac1mk9toSdY=";
+        vendorSha256 = "sha256-5+BYPHVyGDmTbiSjqRWpJzZOc82KwCjv2RKA75Oz4EI=";
       };
     };
   } // flake-utils.lib.eachDefaultSystem (system:
