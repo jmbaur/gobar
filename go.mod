@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/vishvananda/netlink v1.1.0
-	golang.org/x/exp v0.0.0-20220827204233-334a2380cb91
-	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
+	golang.org/x/exp v0.0.0-20220914170420-dc92f8653013
+	golang.org/x/sys v0.0.0-20220913175220-63ea55921009
 )
 
 require (
@@ -16,5 +16,5 @@ require (
 require (
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	github.com/vishvananda/netns v0.0.0-20220913150850-18c4f4234207 // indirect
 )
