@@ -4,6 +4,8 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+    pre-commit-hooks.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs: with inputs; {
@@ -14,11 +16,22 @@
         overlays = [ self.overlays.default ];
         inherit system;
       };
+      preCommitCheck = pre-commit-hooks.lib.${system}.run {
+        src = ./.;
+        hooks = {
+          nixpkgs-fmt.enable = true;
+          gofmt = {
+            enable = true;
+            entry = "${pkgs.gobar.go}/bin/gofmt -w";
+            types = [ "go" ];
+          };
+        };
+      };
     in
     rec {
       devShells.default = pkgs.mkShell {
-        inherit (pkgs.gobar) CGO_ENABLED;
-        buildInputs = with pkgs; [ pkgs.gobar.go ];
+        inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
+        inherit (preCommitCheck) shellHook;
       };
       packages.default = pkgs.gobar;
       apps.default = { type = "app"; program = "${pkgs.gobar}/bin/gobar"; };

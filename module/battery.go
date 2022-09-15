@@ -18,7 +18,6 @@ import (
 var (
 	SysfsPowerSupplyCharging = "Charging"
 	SysfsPowerSupplyFull     = "Full"
-	pluggedInEmoji           = '\U0001F50C'
 	batteryChars             = []rune{
 		'\u2581',
 		'\u2582',

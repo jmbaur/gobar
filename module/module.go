@@ -82,7 +82,6 @@ type moduleState struct {
 	mod       Module
 	clickChan chan i3.ClickEvent
 	blocks    []i3.Block
-	position  int
 }
 
 func decodeToState(cfg *config.Config) []moduleState {
