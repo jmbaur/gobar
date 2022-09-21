@@ -6,7 +6,7 @@
 let
   drv = buildGoModule {
     pname = "gobar";
-    version = "0.1.2";
+    version = "0.1.3";
     CGO_ENABLED = 0;
     src = ./.;
     vendorSha256 = "sha256-+x1zKaT4IiTMHvKXfGn8RFAwYJxBf3OArShOXsQh2cM=";
