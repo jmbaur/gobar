@@ -106,26 +106,26 @@ func (n *Network) init() error {
 	return nil
 }
 
-func (n *Network) print(c chan []i3.Block, err error) {
+func (n *Network) print(tx chan []i3.Block, err error, c col.Color) {
 	if err != nil {
-		c <- []i3.Block{{
+		tx <- []i3.Block{{
 			Name:      "network",
 			Instance:  "network",
 			FullText:  fmt.Sprintf("network: %s", err),
 			ShortText: "network: error",
 			MinWidth:  len("network: error"),
-			Color:     col.Red,
+			Color:     c.Red(),
 		}}
 		return
 	}
 	if len(n.ifaces) == 0 {
-		c <- []i3.Block{{
+		tx <- []i3.Block{{
 			Name:      "network",
 			Instance:  "network",
 			FullText:  "network: no interfaces",
 			ShortText: "network: no interfaces",
 			MinWidth:  len("network: no interfaces"),
-			Color:     col.Red,
+			Color:     c.Red(),
 		}}
 		return
 	}
@@ -135,27 +135,27 @@ func (n *Network) print(c chan []i3.Block, err error) {
 	disconnectedInterfaces := 0
 	for _, iface := range n.ifaces {
 		var (
-			color     = col.Normal
-			fullText  string
-			shortText string
+			printColor = c.Normal()
+			fullText   string
+			shortText  string
 		)
 
 		name := iface.link.Attrs().Name
 
 		switch true {
 		case iface.ipv4 != nil && iface.ipv6 != nil:
-			color = col.Normal
+			printColor = c.Normal()
 			v4Size, _ := iface.ipv4Mask.Size()
 			v6Size, _ := iface.ipv6Mask.Size()
 			shortText = fmt.Sprintf("%s: %s/%d %s/%d", name, iface.ipv4.Mask(iface.ipv4Mask), v4Size, iface.ipv6.Mask(iface.ipv6Mask), v6Size)
 			fullText = fmt.Sprintf("%s: %s %s", name, iface.ipv4, iface.ipv6)
 		case iface.ipv4 != nil && iface.ipv6 == nil:
-			color = col.Yellow
+			printColor = c.Yellow()
 			v4Size, _ := iface.ipv4Mask.Size()
 			shortText = fmt.Sprintf("%s: %s/%d", name, iface.ipv4.Mask(iface.ipv4Mask), v4Size)
 			fullText = fmt.Sprintf("%s: %s", name, iface.ipv4)
 		case iface.ipv4 == nil && iface.ipv6 != nil:
-			color = col.Normal
+			printColor = c.Normal()
 			v6Size, _ := iface.ipv6Mask.Size()
 			shortText = fmt.Sprintf("%s: %s/%d", name, iface.ipv6.Mask(iface.ipv6Mask), v6Size)
 			fullText = fmt.Sprintf("%s: %s", name, iface.ipv6)
@@ -164,7 +164,7 @@ func (n *Network) print(c chan []i3.Block, err error) {
 			if n.patternRe != nil {
 				continue
 			} else {
-				color = col.Red
+				printColor = c.Red()
 				fullText = fmt.Sprintf("%s: not connected", name)
 				shortText = fullText
 			}
@@ -180,7 +180,7 @@ func (n *Network) print(c chan []i3.Block, err error) {
 			FullText:  fullText,
 			ShortText: shortText,
 			MinWidth:  len(shortText),
-			Color:     color,
+			Color:     printColor,
 		})
 	}
 
@@ -191,26 +191,26 @@ func (n *Network) print(c chan []i3.Block, err error) {
 			FullText:  "No connected interfaces",
 			ShortText: "No connected interfaces",
 			MinWidth:  len("No connected interfaces"),
-			Color:     col.Red,
+			Color:     c.Red(),
 		})
 	}
 
-	c <- blocks
+	tx <- blocks
 }
 
-func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
+func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	if !n.valid() {
-		n.print(tx, ErrInvalidPattern)
+		n.print(tx, ErrInvalidPattern, c)
 		return
 	}
 
 	if err := n.init(); err != nil {
-		n.print(tx, err)
+		n.print(tx, err, c)
 		return
 	}
 
 	// Print initial info for all configured network interfaces.
-	n.print(tx, nil)
+	n.print(tx, nil, c)
 
 	linkUpdates := make(chan netlink.LinkUpdate)
 	addrUpdates := make(chan netlink.AddrUpdate)
@@ -222,12 +222,12 @@ func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 	}()
 
 	if err := netlink.LinkSubscribe(linkUpdates, done); err != nil {
-		n.print(tx, err)
+		n.print(tx, err, c)
 		return
 	}
 
 	if err := netlink.AddrSubscribe(addrUpdates, done); err != nil {
-		n.print(tx, err)
+		n.print(tx, err, c)
 		return
 	}
 
@@ -239,7 +239,7 @@ func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 				for i, iface := range n.ifaces {
 					if iface.link.Attrs().Name == click.Instance {
 						n.ifaces[i].hideIP = !n.ifaces[i].hideIP
-						n.print(tx, nil)
+						n.print(tx, nil, c)
 					}
 				}
 			}
@@ -298,7 +298,7 @@ func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 					continue
 				}
 			}
-			n.print(tx, nil)
+			n.print(tx, nil, c)
 		}
 	}
 }

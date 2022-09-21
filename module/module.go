@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/config"
 	"github.com/jmbaur/gobar/i3"
 	"github.com/mitchellh/mapstructure"
@@ -18,7 +19,7 @@ import (
 
 // Module is a thing that can print to a block on the i3bar.
 type Module interface {
-	Run(tx chan []i3.Block, rx chan i3.ClickEvent)
+	Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color)
 }
 
 var header = i3.Header{
@@ -153,8 +154,10 @@ func Run(cfg *config.Config) error {
 	signal.Notify(signals)
 	go handleSignals(signals, done)
 
+	c := col.Color{Variant: cfg.ColorVariant}
+
 	for _, modState := range state {
-		go modState.mod.Run(blocksChan, modState.clickChan)
+		go modState.mod.Run(blocksChan, modState.clickChan, c)
 	}
 
 	go parseStdin(state)

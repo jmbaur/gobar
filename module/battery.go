@@ -65,28 +65,28 @@ func getUeventMap(f *os.File) (map[string]string, error) {
 	return ueventMap, nil
 }
 
-func (b *Battery) print(c chan []i3.Block, err error) {
+func (b *Battery) print(tx chan []i3.Block, err error, c col.Color) {
 	if err != nil {
-		c <- []i3.Block{{
+		tx <- []i3.Block{{
 			Name:     "battery",
 			Instance: "battery",
 			FullText: fmt.Sprintf("BAT: %s", err),
-			Color:    col.Red,
+			Color:    c.Red(),
 		}}
 		return
 	}
 
 	blocks := []i3.Block{}
 	for _, bat := range b.batteries {
-		color := col.Normal
+		color := c.Normal()
 
 		bucket := int(math.Floor(float64(bat.capacity) / capacityBucketSize))
 		capacityRune := batteryChars[bucket]
 
 		if bat.capacity < 10 {
-			color = col.Red
+			color = c.Red()
 		} else if bat.capacity < 20 {
-			color = col.Yellow
+			color = c.Yellow()
 		}
 
 		fullText := fmt.Sprintf("%s: %c %d%% (%s)", bat.name, capacityRune, bat.capacity, bat.status)
@@ -105,10 +105,10 @@ func (b *Battery) print(c chan []i3.Block, err error) {
 			Urgent:    bat.capacity < 5,
 		})
 	}
-	c <- blocks
+	tx <- blocks
 }
 
-func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
+func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
 		base := filepath.Base(path)
 		if strings.HasPrefix(base, "BAT") {
@@ -116,14 +116,14 @@ func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 		}
 		return nil
 	}); err != nil {
-		b.print(tx, err)
+		b.print(tx, err, c)
 		return
 	}
 
 	for i, bat := range b.batteries {
 		fd, err := os.Open(fmt.Sprintf("/sys/class/power_supply/%s/uevent", bat.name))
 		if err != nil {
-			b.print(tx, err)
+			b.print(tx, err, c)
 			return
 		}
 		b.batteries[i].fd = fd
@@ -150,7 +150,7 @@ func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 				for i, bat := range b.batteries {
 					if click.Instance == bat.name {
 						b.batteries[i].verbose = !bat.verbose
-						b.print(tx, nil)
+						b.print(tx, nil, c)
 					}
 				}
 			}
@@ -158,7 +158,7 @@ func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 			for i, bat := range b.batteries {
 				batteryUeventMap, err := getUeventMap(bat.fd)
 				if err != nil {
-					b.print(tx, err)
+					b.print(tx, err, c)
 				}
 				for k, v := range batteryUeventMap {
 					switch k {
@@ -175,7 +175,7 @@ func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 
 			}
 
-			b.print(tx, nil)
+			b.print(tx, nil, c)
 
 			go func() {
 				time.Sleep(5 * time.Second)

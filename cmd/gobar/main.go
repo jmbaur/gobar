@@ -18,15 +18,15 @@ func must(err error) {
 }
 
 func main() {
+	configFile := flag.String("config", "", "Path to gobar.yaml config file")
+	flag.Parse()
+
 	exe, err := os.Executable()
 	must(err)
 
 	log.SetPrefix(fmt.Sprintf("%s: ", filepath.Base(exe)))
 	log.SetFlags(log.Lmsgprefix)
 	log.Println("running")
-
-	configFile := flag.String("config", "", "Path to gobar.yaml config file")
-	flag.Parse()
 
 	cfg, err := config.GetConfig(*configFile)
 	must(err)

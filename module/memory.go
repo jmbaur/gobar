@@ -21,13 +21,13 @@ type Memory struct {
 	currentLabel           string
 }
 
-func (m *Memory) print(c chan []i3.Block, err error) {
+func (m *Memory) print(tx chan []i3.Block, err error, c col.Color) {
 	if err != nil {
-		c <- []i3.Block{{
+		tx <- []i3.Block{{
 			Name:     "memory",
 			Instance: "memory",
 			FullText: fmt.Sprintf("MEM: %s", err),
-			Color:    col.Red,
+			Color:    c.Red(),
 		}}
 	} else {
 		var percent float32
@@ -36,14 +36,14 @@ func (m *Memory) print(c chan []i3.Block, err error) {
 		} else {
 			percent = m.percentMemUnavailable
 		}
-		color := col.Normal
+		color := c.Normal()
 		switch true {
 		case percent > 50:
-			color = col.Yellow
+			color = c.Yellow()
 		case percent > 75:
-			color = col.Red
+			color = c.Red()
 		}
-		c <- []i3.Block{{
+		tx <- []i3.Block{{
 			Name:     "memory",
 			Instance: "memory",
 			FullText: fmt.Sprintf("%s: %0.2f%%", m.currentLabel, percent),
@@ -52,10 +52,10 @@ func (m *Memory) print(c chan []i3.Block, err error) {
 	}
 }
 
-func (m *Memory) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
+func (m *Memory) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
-		m.print(tx, err)
+		m.print(tx, err, c)
 		return
 	}
 
@@ -82,19 +82,19 @@ outer:
 				} else {
 					m.currentLabel = "SWAP"
 				}
-				m.print(tx, nil)
+				m.print(tx, nil, c)
 			}
 		case <-ready:
 			var memTotal, memAvailable, swapTotal, swapFree float32
 
 			data, err := io.ReadAll(f)
 			if err != nil {
-				m.print(tx, err)
+				m.print(tx, err, c)
 				continue
 			}
 			_, err = f.Seek(0, io.SeekStart)
 			if err != nil {
-				m.print(tx, err)
+				m.print(tx, err, c)
 				continue
 			}
 
@@ -141,7 +141,7 @@ outer:
 			m.percentMemUnavailable = ((memTotal - memAvailable) / memTotal) * 100
 			m.percentSwapUnavailable = ((swapTotal - swapFree) / swapTotal) * 100
 
-			m.print(tx, nil)
+			m.print(tx, nil, c)
 
 			go func() {
 				time.Sleep(5 * time.Second)

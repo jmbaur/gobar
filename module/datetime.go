@@ -28,7 +28,7 @@ type Datetime struct {
 	verbose         bool
 }
 
-func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
+func (d *Datetime) print(tx chan []i3.Block, t time.Time, c col.Color) {
 	blocks := []i3.Block{}
 
 	if d.ShowAllTimezones {
@@ -41,7 +41,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 				Name:      "datetime",
 				Instance:  locInfo.loc.String(),
 				FullText:  t.In(locInfo.loc).Format(longFormat),
-				Color:     col.Normal,
+				Color:     c.Normal(),
 				ShortText: t.In(locInfo.loc).Format(d.shortFormat),
 				MinWidth:  len(d.shortFormat),
 			})
@@ -55,7 +55,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 			Name:      "datetime",
 			Instance:  d.locations[d.currentLocation].loc.String(),
 			FullText:  t.In(d.locations[d.currentLocation].loc).Format(longFormat),
-			Color:     col.Normal,
+			Color:     c.Normal(),
 			ShortText: t.In(d.locations[d.currentLocation].loc).Format(d.shortFormat),
 			MinWidth:  len(d.shortFormat),
 		}}
@@ -64,7 +64,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time) {
 	tx <- blocks
 }
 
-func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
+func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	now := time.Now()
 
 	d.shortFormat = "15:04:05 MST"
@@ -132,10 +132,10 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent) {
 				d.currentLocation = idx
 			}
 
-			d.print(tx, now)
+			d.print(tx, now, c)
 		case <-ready:
 			now = time.Now()
-			d.print(tx, now)
+			d.print(tx, now, c)
 			go func() {
 				time.Sleep(1 * time.Second)
 				ready <- struct{}{}

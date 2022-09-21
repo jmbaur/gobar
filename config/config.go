@@ -8,7 +8,13 @@ import (
 	"github.com/go-yaml/yaml"
 )
 
+type Config struct {
+	ColorVariant string
+	Modules      []any `yaml:"modules"`
+}
+
 var defaultConfig = Config{
+	ColorVariant: "dark",
 	Modules: []any{
 		map[any]any{
 			"module":  "network",
@@ -25,10 +31,6 @@ var defaultConfig = Config{
 			"content": "gobar",
 		},
 	},
-}
-
-type Config struct {
-	Modules []any `yaml:"modules"`
 }
 
 func GetConfig(flagConfigFile string) (*Config, error) {

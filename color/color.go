@@ -1,8 +1,25 @@
 package color
 
-var (
-	Green  = "#00ff00"
-	Normal = "#ffffff"
-	Red    = "#ff0000"
-	Yellow = "#ffff00"
-)
+type Color struct {
+	Variant string // "dark" or "light"
+}
+
+func (c Color) Green() string {
+	return "#11ab00"
+}
+
+func (c Color) Red() string {
+	return "#ff4053"
+}
+
+func (c Color) Yellow() string {
+	return "#bf8c00"
+}
+
+func (c Color) Normal() string {
+	if c.Variant == "light" {
+		return "#000000"
+	}
+
+	return "#ffffff"
+}
