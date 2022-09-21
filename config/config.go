@@ -9,8 +9,8 @@ import (
 )
 
 type Config struct {
-	ColorVariant string
-	Modules      []any `yaml:"modules"`
+	ColorVariant string `yaml:"colorVariant"`
+	Modules      []any  `yaml:"modules"`
 }
 
 var defaultConfig = Config{
