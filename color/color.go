@@ -5,15 +5,15 @@ type Color struct {
 }
 
 func (c Color) Green() string {
-	return "#11ab00"
+	return "#b5bd68"
 }
 
 func (c Color) Red() string {
-	return "#ff4053"
+	return "#cc6666"
 }
 
 func (c Color) Yellow() string {
-	return "#bf8c00"
+	return "#f0c674"
 }
 
 func (c Color) Normal() string {
