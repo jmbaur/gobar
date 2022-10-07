@@ -28,8 +28,10 @@ func (m *Memory) print(tx chan []i3.Block, err error, c col.Color) {
 			Instance: "memory",
 			FullText: fmt.Sprintf("MEM: %s", err),
 			Color:    c.Red(),
+			Urgent:   true,
 		}}
 	} else {
+		urgent := false
 		var percent float32
 		if m.currentLabel == "SWAP" {
 			percent = m.percentSwapUnavailable
@@ -42,12 +44,14 @@ func (m *Memory) print(tx chan []i3.Block, err error, c col.Color) {
 			color = c.Yellow()
 		case percent > 75:
 			color = c.Red()
+			urgent = true
 		}
 		tx <- []i3.Block{{
 			Name:     "memory",
 			Instance: "memory",
 			FullText: fmt.Sprintf("%s: %0.2f%%", m.currentLabel, percent),
 			Color:    color,
+			Urgent:   urgent,
 		}}
 	}
 }
