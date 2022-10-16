@@ -9,7 +9,7 @@ let
     version = "0.1.3";
     CGO_ENABLED = 0;
     src = ./.;
-    vendorSha256 = "sha256-qTitFa5mdddbbTuYvefT4mytl9GBXBPjXpZBR+vya0o=";
+    vendorSha256 = "sha256-+t+Z+rpXDZMYJey7ON+Rntb0Wf25WIu68PWNHNjvVOM=";
     preCheck = ''
       HOME=/tmp ${go-tools}/bin/staticcheck ./...
     '';
