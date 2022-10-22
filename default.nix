@@ -6,4 +6,5 @@ buildGoModule {
   src = ./.;
   vendorSha256 = "sha256-UhquUYw+45anj8CEKWYVIb42Gk1j3hQtUDGZRcU+2zI=";
   preCheck = "HOME=/tmp ${go-tools}/bin/staticcheck ./...";
+  ldflags = [ "-s" "-w" ];
 }
