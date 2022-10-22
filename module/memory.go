@@ -49,7 +49,7 @@ func (m *Memory) print(tx chan []i3.Block, err error, c col.Color) {
 		tx <- []i3.Block{{
 			Name:     "memory",
 			Instance: "memory",
-			FullText: fmt.Sprintf("%s: %0.2f%%", m.currentLabel, percent),
+			FullText: fmt.Sprintf("%s: %d%%", m.currentLabel, int(percent)),
 			Color:    color,
 			Urgent:   urgent,
 		}}
