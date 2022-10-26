@@ -31,6 +31,7 @@
     in
     rec {
       devShells.default = pkgs.mkShell {
+        buildInputs = [ pkgs.go-tools ];
         inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
         inherit (preCommitCheck) shellHook;
       };
