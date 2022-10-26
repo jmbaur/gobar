@@ -3,7 +3,7 @@ buildGoModule {
   pname = "gobar";
   version = "0.1.3";
   src = ./.;
-  vendorSha256 = "sha256-UhquUYw+45anj8CEKWYVIb42Gk1j3hQtUDGZRcU+2zI=";
+  vendorSha256 = "sha256-4N5pm67xebRVNmwVFUgevhgWHlhdxipeY5f6CX0MKfg=";
   inherit CGO_ENABLED;
   ldflags = [ "-s" "-w" ];
 }
