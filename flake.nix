@@ -30,10 +30,12 @@
       };
     in
     rec {
-      devShells.default = pkgs.mkShell {
+      devShells.default = self.devShells.${system}.ci.overrideAttrs (old: {
+        inherit (preCommitCheck) shellHook;
+      });
+      devShells.ci = pkgs.mkShell {
         buildInputs = with pkgs; [ just go-tools nix-prefetch ];
         inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
-        inherit (preCommitCheck) shellHook;
       };
       packages.default = pkgs.gobar;
       apps.default = { type = "app"; program = "${pkgs.gobar}/bin/gobar"; };
