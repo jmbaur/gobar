@@ -35,7 +35,7 @@
         inherit (preCommitCheck) shellHook;
       });
       devShells.ci = pkgs.mkShell {
-        buildInputs = with pkgs; [ just go-tools nix-prefetch ];
+        buildInputs = with pkgs; [ go-tools just nix-prefetch revive ];
         inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
       };
       packages.default = pkgs.gobar;
