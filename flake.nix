@@ -21,6 +21,7 @@
         hooks = {
           nixpkgs-fmt.enable = true;
           govet.enable = true;
+          revive.enable = true;
           gofmt = {
             enable = true;
             entry = "${pkgs.gobar.go}/bin/gofmt -w";
