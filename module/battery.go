@@ -16,9 +16,7 @@ import (
 )
 
 var (
-	sysfsPowerSupplyCharging = "Charging"
-	sysfsPowerSupplyFull     = "Full"
-	batteryChars             = []rune{
+	batteryChars = []rune{
 		'\u2581',
 		'\u2582',
 		'\u2583',
