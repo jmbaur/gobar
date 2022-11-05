@@ -1,3 +1,5 @@
+// Package module provides the logic for running each section of the i3/sway
+// bar.
 package module
 
 import (

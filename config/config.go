@@ -1,3 +1,4 @@
+// Package config provides exports for reading in configuration files.
 package config
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/go-yaml/yaml"
 )
 
+// Config is the data structure that represents the root of the configuration.
 type Config struct {
 	ColorVariant string `yaml:"colorVariant"`
 	Modules      []any  `yaml:"modules"`
@@ -33,10 +35,12 @@ var defaultConfig = Config{
 	},
 }
 
-func GetConfig(flagConfigFile string) (*Config, error) {
+// GetConfig will retrieve a configuration file at an optionally overridden
+// location.
+func GetConfig(overrideFilepath string) (*Config, error) {
 	config := defaultConfig
 
-	path, err := getConfigFilePath(flagConfigFile)
+	path, err := getConfigFilePath(overrideFilepath)
 	if err == ErrNoLookupLocation || err == ErrNoConfig {
 		return &config, nil
 	}

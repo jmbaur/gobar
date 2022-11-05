@@ -5,10 +5,12 @@ import (
 	"github.com/jmbaur/gobar/i3"
 )
 
+// Text is a module that will just print static text content.
 type Text struct {
 	Content string
 }
 
+// Run implements Module.
 func (t *Text) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	tx <- []i3.Block{{
 		Name:      "text",

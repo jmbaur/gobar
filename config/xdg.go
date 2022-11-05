@@ -8,8 +8,11 @@ import (
 )
 
 var (
+	// ErrNoLookupLocation represents when there is no filepath location to
+	// find a configuration file.
 	ErrNoLookupLocation = errors.New("no config file lookup location")
-	ErrNoConfig         = errors.New("no config file loaded")
+	// ErrNoConfig represents when no configuration file was loaded.
+	ErrNoConfig = errors.New("no config file loaded")
 )
 
 func configFilePriority() []string {

@@ -1,6 +1,17 @@
+// Package i3 provides data structures for interacting with the i3bar/swaybar
+// protocol.
 package i3
 
 import "syscall"
+
+const (
+	// LeftClick represents a left mouse click.
+	LeftClick = iota + 1
+	// MiddleClick represents a left mouse click.
+	MiddleClick
+	// RightClick represents a left mouse click.
+	RightClick
+)
 
 // Header is the first thing that i3bar will read to determine how this program
 // will interact with it.
@@ -48,9 +59,3 @@ type ClickEvent struct {
 	Width     int      `json:"width"`
 	Height    int      `json:"height"`
 }
-
-const (
-	LeftClick = iota + 1
-	MiddleClick
-	RightClick
-)

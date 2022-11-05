@@ -15,6 +15,8 @@ import (
 
 var digitsRe = regexp.MustCompile("[0-9]+")
 
+// Memory provides information on RAM and swap usage for the system. Only works
+// on Linux.
 type Memory struct {
 	percentMemUnavailable  float32
 	percentSwapUnavailable float32
@@ -56,6 +58,7 @@ func (m *Memory) print(tx chan []i3.Block, err error, c col.Color) {
 	}
 }
 
+// Run implements Module.
 func (m *Memory) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {

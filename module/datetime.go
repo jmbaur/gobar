@@ -64,6 +64,7 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time, c col.Color) {
 	tx <- blocks
 }
 
+// Run implements Module.
 func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	now := time.Now()
 

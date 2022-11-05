@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	SysfsPowerSupplyCharging = "Charging"
-	SysfsPowerSupplyFull     = "Full"
+	sysfsPowerSupplyCharging = "Charging"
+	sysfsPowerSupplyFull     = "Full"
 	batteryChars             = []rune{
 		'\u2581',
 		'\u2582',
@@ -31,6 +31,8 @@ var (
 	capacityBucketSize = float64(100) / float64(len(batteryChars)-1)
 )
 
+// Battery is a module that prints the capacity and charging status of
+// batteries. Only works on Linux.
 type Battery struct {
 	batteries []batteryInfo
 }
@@ -108,6 +110,7 @@ func (b *Battery) print(tx chan []i3.Block, err error, c col.Color) {
 	tx <- blocks
 }
 
+// Run implements Module.
 func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
 		base := filepath.Base(path)

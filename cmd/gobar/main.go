@@ -1,3 +1,6 @@
+//go:build linux
+
+// Package main is the entrypoint to the command line program.
 package main
 
 import (

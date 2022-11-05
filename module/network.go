@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	ErrInvalidPattern = errors.New("invalid interface pattern string")
-	ErrNoMatch        = errors.New("no matching interface")
+	errNetworkInvalidPattern = errors.New("invalid interface pattern string")
+	errNetworkNoMatch        = errors.New("no matching interface")
 )
 
 type iface struct {
@@ -28,8 +28,10 @@ type iface struct {
 	ipv6Mask net.IPMask
 }
 
+// Network provides IP address information for chosen network interfaces. The
+// interface can be an exact match on the interface name or a match on a name
+// regexp. Only works on Linux.
 type Network struct {
-	// The name of the network interface
 	Interface *string
 	Pattern   *string
 
@@ -62,7 +64,7 @@ func (n *Network) init() error {
 			}
 		}
 		if matchedNone {
-			return ErrNoMatch
+			return errNetworkNoMatch
 		}
 	} else if n.Interface != nil && n.ifaces == nil {
 		link, err := netlink.LinkByName(*n.Interface)
@@ -198,9 +200,10 @@ func (n *Network) print(tx chan []i3.Block, err error, c col.Color) {
 	tx <- blocks
 }
 
+// Run implements Module.
 func (n *Network) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	if !n.valid() {
-		n.print(tx, ErrInvalidPattern, c)
+		n.print(tx, errNetworkInvalidPattern, c)
 		return
 	}
 
