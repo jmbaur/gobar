@@ -1,3 +1,5 @@
+# vim: ft=make
+
 build:
 	go build -o $out/gobar ./cmd/gobar
 
