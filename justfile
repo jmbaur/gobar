@@ -17,5 +17,5 @@ update:
 		 "{ sha256 }: ((import <nixpkgs> {}).callPackage ./. {}).go-modules.overrideAttrs (_: { vendorSha256 = sha256; })")"
 	sed -i "s|vendorSha256.*|vendorSha256 = \"$newvendorSha256\";|" default.nix
 
-run:
-	go run ./cmd/gobar
+run module="full":
+	go run ./cmd/gobar --config {{justfile_directory()}}/examples/{{module}}.yaml

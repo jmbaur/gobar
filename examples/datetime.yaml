@@ -1,4 +1,3 @@
----
 modules:
   - module: "datetime"
     show_all_timezones: false

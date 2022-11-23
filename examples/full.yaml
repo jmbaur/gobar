@@ -1,0 +1,12 @@
+modules:
+  - module: "battery"
+  - module: "datetime"
+    show_all_timezones: false
+    timezones:
+      - Local
+      - UTC
+  - module: "memory"
+  - module: "network"
+    pattern: "(en|eth|wlp|wlan|tun)+"
+  - module: "text"
+    content: "gobar"
