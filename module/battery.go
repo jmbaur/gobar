@@ -1,6 +1,7 @@
 package module
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/fs"
@@ -111,8 +112,25 @@ func (b *Battery) print(tx chan []i3.Block, err error, c col.Color) {
 // Run implements Module.
 func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
 		base := filepath.Base(path)
-		if strings.HasPrefix(base, "BAT") {
+		if base == "power_supply" {
+			return nil
+		}
+
+		typeFile, fErr := os.Open(filepath.Join(path, "type"))
+		if fErr != nil {
+			return err
+		}
+		defer typeFile.Close()
+		typeContents, readErr := io.ReadAll(typeFile)
+		if readErr != nil {
+			return err
+		}
+		if string(bytes.TrimSpace(typeContents)) == "Battery" {
 			b.batteries = append(b.batteries, batteryInfo{name: base})
 		}
 		return nil

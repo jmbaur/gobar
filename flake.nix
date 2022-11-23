@@ -3,42 +3,41 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
-    pre-commit-hooks.inputs.nixpkgs.follows = "nixpkgs";
+    pre-commit.url = "github:cachix/pre-commit-hooks.nix";
+    pre-commit.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs: with inputs; {
-    overlays.default = _: prev: { gobar = prev.callPackage ./. { }; };
-  } // flake-utils.lib.eachSystem [ "aarch64-linux" "x86_64-linux" ] (system:
+  outputs = inputs: with inputs;
     let
-      pkgs = import nixpkgs {
-        overlays = [ self.overlays.default ];
+      forAllSystems = f: nixpkgs.lib.genAttrs [ "aarch64-linux" "x86_64-linux" ] (system: f {
         inherit system;
-      };
-      preCommitCheck = pre-commit-hooks.lib.${system}.run {
-        src = ./.;
-        hooks = {
-          nixpkgs-fmt.enable = true;
-          govet.enable = true;
-          revive.enable = true;
-          gofmt = {
-            enable = true;
-            entry = "${pkgs.gobar.go}/bin/gofmt -w";
-            types = [ "go" ];
-          };
-        };
-      };
-    in
-    rec {
-      devShells.default = self.devShells.${system}.ci.overrideAttrs (old: {
-        inherit (preCommitCheck) shellHook;
+        pkgs = import nixpkgs { inherit system; overlays = [ self.overlays.default ]; };
       });
-      devShells.ci = pkgs.mkShell {
-        buildInputs = with pkgs; [ go-tools just nix-prefetch revive ];
-        inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
-      };
-      packages.default = pkgs.gobar;
-      apps.default = { type = "app"; program = "${pkgs.gobar}/bin/gobar"; };
-    });
+    in
+    {
+      overlays.default = _: prev: { gobar = prev.callPackage ./. { }; };
+      devShells = forAllSystems ({ pkgs, system, ... }: {
+        ci = pkgs.mkShell {
+          buildInputs = with pkgs; [ go-tools just nix-prefetch revive ];
+          inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
+        };
+        default = self.devShells.${system}.ci.overrideAttrs (old: {
+          inherit (pre-commit.lib.${system}.run {
+            src = ./.;
+            hooks = {
+              nixpkgs-fmt.enable = true;
+              govet.enable = true;
+              revive.enable = true;
+              gofmt = {
+                enable = true;
+                entry = "${pkgs.gobar.go}/bin/gofmt -w";
+                types = [ "go" ];
+              };
+            };
+          }) shellHook;
+        });
+      });
+      packages = forAllSystems ({ pkgs, ... }: { default = pkgs.gobar; });
+      apps = forAllSystems ({ pkgs, ... }: { default = { type = "app"; program = "${pkgs.gobar}/bin/gobar"; }; });
+    };
 }
