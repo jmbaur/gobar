@@ -19,7 +19,7 @@
       devShells = forAllSystems ({ pkgs, system, ... }: {
         ci = pkgs.mkShell {
           buildInputs = with pkgs; [ go-tools just nix-prefetch revive ];
-          inherit (pkgs.gobar) CGO_ENABLED nativeBuildInputs;
+          inherit (pkgs.gobar) nativeBuildInputs;
         };
         default = self.devShells.${system}.ci.overrideAttrs (old: {
           inherit (pre-commit.lib.${system}.run {
