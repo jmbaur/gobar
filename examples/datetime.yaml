@@ -1,6 +1,6 @@
 modules:
   - module: "datetime"
-    show_all_timezones: false
+    show_all_timezones: true
     timezones:
       - Local
       - UTC

@@ -21,8 +21,8 @@ type Datetime struct {
 	// toggled with a middle click.
 	ShowAllTimezones bool `mapstructure:"show_all_timezones"`
 
-	currentLocation int
-	locations       []locationInfo
+	currentLocation *time.Location
+	locations       []*time.Location
 	shortFormat     string
 	longFormat      string
 	verbose         bool
@@ -32,17 +32,17 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time, c col.Color) {
 	blocks := []i3.Block{}
 
 	if d.ShowAllTimezones {
-		for _, locInfo := range d.locations {
+		for _, loc := range d.locations {
 			longFormat := d.longFormat
 			if !d.verbose {
 				longFormat = d.shortFormat
 			}
 			blocks = append(blocks, i3.Block{
 				Name:      "datetime",
-				Instance:  locInfo.loc.String(),
-				FullText:  t.In(locInfo.loc).Format(longFormat),
+				Instance:  loc.String(),
+				FullText:  t.In(loc).Format(longFormat),
 				Color:     c.Normal(),
-				ShortText: t.In(locInfo.loc).Format(d.shortFormat),
+				ShortText: t.In(loc).Format(d.shortFormat),
 				MinWidth:  len(d.shortFormat),
 			})
 		}
@@ -53,10 +53,10 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time, c col.Color) {
 		}
 		blocks = []i3.Block{{
 			Name:      "datetime",
-			Instance:  d.locations[d.currentLocation].loc.String(),
-			FullText:  t.In(d.locations[d.currentLocation].loc).Format(longFormat),
+			Instance:  d.currentLocation.String(),
+			FullText:  t.In(d.currentLocation).Format(longFormat),
 			Color:     c.Normal(),
-			ShortText: t.In(d.locations[d.currentLocation].loc).Format(d.shortFormat),
+			ShortText: t.In(d.currentLocation).Format(d.shortFormat),
 			MinWidth:  len(d.shortFormat),
 		}}
 	}
@@ -66,8 +66,6 @@ func (d *Datetime) print(tx chan []i3.Block, t time.Time, c col.Color) {
 
 // Run implements Module.
 func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
-	now := time.Now()
-
 	d.shortFormat = "15:04:05 MST"
 	d.longFormat = time.RFC1123
 
@@ -77,24 +75,35 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 		d.longFormat = "Mon, 02 Jan 2006 15:04:05"
 	}
 
-	tzMap := map[string]struct{}{}
-	for _, tz := range d.Timezones {
-		loc, err := time.LoadLocation(tz)
-		if err != nil {
-			log.Printf("error parsing timezone: %v", err)
+	// Avoid adding duplicate timezones to our list of timezones to use while
+	// running. For example, if the configuration has "Local" and "UTC" set,
+	// but the local timezone _is_ in UTC, then we should only have one
+	// timezone in our running list of timezones.
+	{
+		tzMap := map[int]struct{}{}
+		for _, tz := range d.Timezones {
+			loc, err := time.LoadLocation(tz)
+			if err != nil {
+				log.Printf("error parsing timezone: %v", err)
+				continue
+			}
+			_, offset := time.Now().In(loc).Zone()
+			if _, ok := tzMap[offset]; ok {
+				continue
+			}
+			tzMap[offset] = struct{}{}
+			d.locations = append(d.locations, loc)
 		}
-		// avoid duplicate timezones
-		name, _ := now.In(loc).Zone()
-		if _, ok := tzMap[name]; ok {
-			continue
-		}
-		tzMap[name] = struct{}{}
-		d.locations = append(d.locations, locationInfo{
-			loc: loc,
-		})
 	}
 
-	d.currentLocation = 0
+	// If all configured timezones fail to parse, ensure that at least the
+	// default timezone works.
+	if len(d.locations) == 0 {
+		d.locations = []*time.Location{{}}
+	}
+
+	// Start at the first configured timezone.
+	d.currentLocation = d.locations[0]
 
 	ready := make(chan struct{}, 1)
 	defer close(ready)
@@ -107,13 +116,13 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 		select {
 		case click := <-rx:
 			direction := 0
+			idx := 0
 			switch click.Button {
 			case i3.MiddleClick:
-				idx := slices.IndexFunc(d.locations, func(loc locationInfo) bool {
-					return loc.loc.String() == click.Instance
+				idx = slices.IndexFunc(d.locations, func(loc *time.Location) bool {
+					return loc.String() == d.currentLocation.String()
 				})
-				log.Println(idx)
-				if idx < 0 {
+				if idx < 0 || idx > len(d.locations)-1 {
 					continue
 				}
 				d.verbose = !d.verbose
@@ -124,19 +133,18 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 			}
 
 			if direction != 0 {
-				idx := d.currentLocation + direction
-				if idx >= len(d.locations) {
-					idx = 0
-				} else if idx < 0 {
-					idx = len(d.locations) - 1
+				newIdx := idx + direction
+				if newIdx >= len(d.locations) {
+					newIdx = 0
+				} else if newIdx < 0 {
+					newIdx = len(d.locations) - 1
 				}
-				d.currentLocation = idx
+				d.currentLocation = d.locations[newIdx]
 			}
 
-			d.print(tx, now, c)
+			d.print(tx, time.Now(), c)
 		case <-ready:
-			now = time.Now()
-			d.print(tx, now, c)
+			d.print(tx, time.Now(), c)
 			go func() {
 				time.Sleep(1 * time.Second)
 				ready <- struct{}{}
