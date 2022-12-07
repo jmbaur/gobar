@@ -69,12 +69,6 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	d.shortFormat = "15:04:05 MST"
 	d.longFormat = time.RFC1123
 
-	if len(d.Timezones) == 0 {
-		d.Timezones = append(d.Timezones, "Local")
-		d.shortFormat = "15:04:05"
-		d.longFormat = "Mon, 02 Jan 2006 15:04:05"
-	}
-
 	// Avoid adding duplicate timezones to our list of timezones to use while
 	// running. For example, if the configuration has "Local" and "UTC" set,
 	// but the local timezone _is_ in UTC, then we should only have one
@@ -96,10 +90,10 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 		}
 	}
 
-	// If all configured timezones fail to parse, ensure that at least the
-	// default timezone works.
+	// If there are no configured timezones or if all configured timezones fail
+	// to parse, ensure that at least the default timezone is present.
 	if len(d.locations) == 0 {
-		d.locations = []*time.Location{{}}
+		d.locations = []*time.Location{time.Local}
 	}
 
 	// Start at the first configured timezone.
@@ -116,15 +110,14 @@ func (d *Datetime) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 		select {
 		case click := <-rx:
 			direction := 0
-			idx := 0
+			idx := slices.IndexFunc(d.locations, func(loc *time.Location) bool {
+				return loc.String() == click.Instance
+			})
+			if idx < 0 || idx > len(d.locations)-1 {
+				continue
+			}
 			switch click.Button {
 			case i3.MiddleClick:
-				idx = slices.IndexFunc(d.locations, func(loc *time.Location) bool {
-					return loc.String() == d.currentLocation.String()
-				})
-				if idx < 0 || idx > len(d.locations)-1 {
-					continue
-				}
 				d.verbose = !d.verbose
 			case i3.LeftClick:
 				direction = 1
