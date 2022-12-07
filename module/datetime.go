@@ -9,10 +9,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type locationInfo struct {
-	loc *time.Location
-}
-
 // Datetime is a module for printing the date and time.
 type Datetime struct {
 	// For example: Local, UTC, Europe/Zurich, etc.
