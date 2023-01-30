@@ -28,11 +28,7 @@
               nixpkgs-fmt.enable = true;
               govet.enable = true;
               revive.enable = true;
-              gofmt = {
-                enable = true;
-                entry = "${pkgs.gobar.go}/bin/gofmt -w";
-                types = [ "go" ];
-              };
+              gofmt.enable = true;
             };
           }) shellHook;
         });
