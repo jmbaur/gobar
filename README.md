@@ -1,5 +1,20 @@
-# TODO
+# gobar
 
-## Network module
+An i3bar/swaybar protocol-compatible program. Includes some basic modules and
+click support.
 
-- Print the info for the interface with the highest metric
+## Building
+
+```bash
+go build ./cmd/gobar
+```
+
+## Usage
+
+Place this in your i3 or sway config:
+
+```i3config
+bar {
+  status_command path/to/gobar
+}
+```
