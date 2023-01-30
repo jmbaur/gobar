@@ -22,3 +22,6 @@ update:
 
 run module="full":
 	go run ./cmd/gobar --config {{justfile_directory()}}/examples/{{module}}.yaml
+
+test: build
+	sway --config ./test/sway.config

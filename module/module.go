@@ -26,8 +26,8 @@ type Module interface {
 
 var header = i3.Header{
 	Version:     1,
-	StopSignal:  syscall.SIGSTOP,
-	ContSignal:  syscall.SIGCONT,
+	StopSignal:  syscall.SIGUSR1,
+	ContSignal:  syscall.SIGUSR2,
 	ClickEvents: true,
 }
 
@@ -68,14 +68,15 @@ func parseStdin(state []moduleState) {
 	}
 }
 
-func handleSignals(signals chan os.Signal, done chan struct{}) {
+func handleSignals(signals chan os.Signal, done chan<- struct{}, pause chan<- bool) {
 	for {
-		sig := <-signals
-		switch sig {
-		case syscall.SIGSTOP:
-		case syscall.SIGCONT:
-		case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
+		switch <-signals {
+		case syscall.SIGINT, syscall.SIGTERM:
 			done <- struct{}{}
+		case syscall.SIGUSR1:
+			pause <- true
+		case syscall.SIGUSR2:
+			pause <- false
 		}
 	}
 }
@@ -152,9 +153,11 @@ func Run(cfg *config.Config) error {
 		}
 	}()
 
+	pause := make(chan bool)
+
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals)
-	go handleSignals(signals, done)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGUSR2)
+	go handleSignals(signals, done, pause)
 
 	c := col.Color{Variant: cfg.ColorVariant}
 
@@ -165,24 +168,41 @@ func Run(cfg *config.Config) error {
 	go parseStdin(state)
 
 	isDone := false
+	isPaused := false
 	fmt.Printf("[\n")
 	for {
+		// if we are currently paused, block until we are unpaused
+		if isPaused {
+			log.Println("paused")
+			isPaused = <-pause
+			log.Println("unpaused")
+		}
+
 		select {
+		case paused := <-pause:
+			{
+				isPaused = paused
+				continue
+			}
 		case blocks := <-blocksChan:
-			if len(blocks) == 0 {
-				continue
-			}
+			{
+				if len(blocks) == 0 {
+					continue
+				}
 
-			pos := slices.IndexFunc(state, func(modState moduleState) bool {
-				return modState.name == blocks[0].Name
-			})
-			if pos == -1 {
-				continue
-			}
+				pos := slices.IndexFunc(state, func(modState moduleState) bool {
+					return modState.name == blocks[0].Name
+				})
+				if pos == -1 {
+					continue
+				}
 
-			state[pos].blocks = blocks
+				state[pos].blocks = blocks
+			}
 		case <-done:
-			isDone = true
+			{
+				isDone = true
+			}
 		}
 
 		blockSlice := []i3.Block{}
