@@ -18,8 +18,8 @@
       overlays.default = _: prev: { gobar = prev.callPackage ./. { }; };
       devShells = forAllSystems ({ pkgs, system, ... }: {
         ci = pkgs.mkShell {
-          buildInputs = with pkgs; [ go-tools just nix-prefetch revive ];
-          inherit (pkgs.gobar) nativeBuildInputs;
+          inputsFrom = [ pkgs.gobar ];
+          nativeBuildInputs = with pkgs; [ sway go-tools just nix-prefetch revive ];
         };
         default = self.devShells.${system}.ci.overrideAttrs (old: {
           inherit (pre-commit.lib.${system}.run {
