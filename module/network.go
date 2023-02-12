@@ -137,7 +137,7 @@ func (n *Network) print(tx chan []i3.Block, err error, c col.Color) {
 	disconnectedInterfaces := 0
 	for _, iface := range n.ifaces {
 		var (
-			printColor = c.Normal()
+			printColor string
 			fullText   string
 			shortText  string
 		)
