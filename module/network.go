@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"regexp"
 	"sort"
 
@@ -17,6 +18,13 @@ import (
 var (
 	errNetworkInvalidPattern = errors.New("invalid interface pattern string")
 	errNetworkNoMatch        = errors.New("no matching interface")
+)
+
+var (
+	// 2000::/3
+	guaPrefix = netip.PrefixFrom(netip.AddrFrom16([16]byte{0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}), 3)
+	// fc00::/7
+	ulaPrefix = netip.PrefixFrom(netip.AddrFrom16([16]byte{0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}), 7)
 )
 
 type iface struct {
@@ -336,22 +344,44 @@ func prioritizeIPv6(ip net.IP, flags int) int {
 	if flags&unix.IFA_F_DEPRECATED > 0 {
 		score -= 1000
 	}
+
 	if flags&unix.IFA_F_TEMPORARY > 0 {
 		score += 300
 	}
+
+	if flags&unix.IFA_F_PERMANENT > 0 {
+		score += 500
+	}
+
+	// often not used for routing, often set as primary
 	if flags&unix.IFA_F_MANAGETEMPADDR > 0 {
+		score -= 2000
+	}
+
+	// may have been obtained via DHCPv6 or is a temp addr
+	if flags&unix.IFA_F_NOPREFIXROUTE > 0 {
+		score += 500
+	}
+
+	if parsed, err := netip.ParseAddr(ip.String()); err == nil {
+		if guaPrefix.Contains(parsed) {
+			score += 500
+		}
+		if ulaPrefix.Contains(parsed) {
+			score -= 10
+		}
+	}
+
+	// often used for routing, set from temp addr
+	if flags&unix.IFA_F_SECONDARY > 0 {
 		score += 10
 	}
+
 	if !ip.IsPrivate() && ip.IsGlobalUnicast() {
 		score += 100
 	}
-	if !ip.IsPrivate() && ip.IsGlobalUnicast() {
-		score += 90
-	}
-	if ip.IsPrivate() {
-		score += 10
-	}
-	if ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() {
+
+	if ip.IsLinkLocalUnicast() {
 		score -= 1000
 	}
 
