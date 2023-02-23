@@ -215,12 +215,14 @@ func Run(cfg *config.Config) error {
 			continue
 		}
 
+		fmt.Print(string(data))
+
 		if isDone {
-			fmt.Printf("%s\n]\n", data)
+			fmt.Printf("\n]")
 			break
 		}
 
-		fmt.Printf("%s,\n", data)
+		fmt.Println(",")
 	}
 
 	return nil
