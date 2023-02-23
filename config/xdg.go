@@ -29,9 +29,10 @@ func configFilePriority() []string {
 		for _, dir := range strings.Split(xdgConfigDirs, ":") {
 			dirs = append(dirs, filepath.Join(dir, "gobar", "gobar.yaml"))
 		}
+	} else {
+		dirs = append(dirs, filepath.Join("etc", "xdg", "gobar", "gobar.yaml"))
 	}
 
-	dirs = append(dirs, filepath.Join("etc", "xdg", "gobar", "gobar.yaml"))
 
 	return dirs
 }
