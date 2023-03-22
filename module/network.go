@@ -144,64 +144,43 @@ func (n *Network) print(tx chan []i3.Block, err error, c col.Color) {
 
 	disconnectedInterfaces := 0
 	for _, iface := range n.ifaces {
-		var (
-			printColor string
-			fullText   string
-			shortText  string
-		)
+		var printColor string
 
 		name := iface.link.Attrs().Name
 
 		switch true {
 		case iface.ipv4 != nil && iface.ipv6 != nil:
 			printColor = c.Normal()
-			v4Size, _ := iface.ipv4Mask.Size()
-			v6Size, _ := iface.ipv6Mask.Size()
-			shortText = fmt.Sprintf("%s: %s/%d %s/%d", name, iface.ipv4.Mask(iface.ipv4Mask), v4Size, iface.ipv6.Mask(iface.ipv6Mask), v6Size)
-			fullText = fmt.Sprintf("%s: %s %s", name, iface.ipv4, iface.ipv6)
 		case iface.ipv4 != nil && iface.ipv6 == nil:
 			printColor = c.Yellow()
-			v4Size, _ := iface.ipv4Mask.Size()
-			shortText = fmt.Sprintf("%s: %s/%d", name, iface.ipv4.Mask(iface.ipv4Mask), v4Size)
-			fullText = fmt.Sprintf("%s: %s", name, iface.ipv4)
 		case iface.ipv4 == nil && iface.ipv6 != nil:
 			printColor = c.Normal()
-			v6Size, _ := iface.ipv6Mask.Size()
-			shortText = fmt.Sprintf("%s: %s/%d", name, iface.ipv6.Mask(iface.ipv6Mask), v6Size)
-			fullText = fmt.Sprintf("%s: %s", name, iface.ipv6)
 		default:
 			disconnectedInterfaces++
 			if n.patternRe != nil {
 				continue
 			} else {
 				printColor = c.Red()
-				fullText = fmt.Sprintf("%s: not connected", name)
-				shortText = fullText
 			}
 		}
 
-		if iface.hideIP {
-			fullText = shortText
-		}
-
 		blocks = append(blocks, i3.Block{
-			Name:      "network",
-			Instance:  name,
-			FullText:  fullText,
-			ShortText: shortText,
-			MinWidth:  len(shortText),
-			Color:     printColor,
+			Name:     "network",
+			Instance: name,
+			FullText: name,
+			MinWidth: len(name),
+			Color:    printColor,
 		})
 	}
 
 	if n.patternRe != nil && len(n.ifaces) == disconnectedInterfaces {
+		text := "NET: none"
 		blocks = append(blocks, i3.Block{
-			Name:      "network",
-			Instance:  "network",
-			FullText:  "No connected interfaces",
-			ShortText: "No connected interfaces",
-			MinWidth:  len("No connected interfaces"),
-			Color:     c.Red(),
+			Name:     "network",
+			Instance: "network",
+			FullText: text,
+			MinWidth: len(text),
+			Color:    c.Red(),
 		})
 	}
 
