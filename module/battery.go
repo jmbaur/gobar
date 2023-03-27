@@ -63,7 +63,7 @@ func (b *Battery) print(tx chan []i3.Block, err error, c col.Color) {
 }
 
 // Run implements Module.
-func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
+func (b *Battery) Run(tx chan []i3.Block, _ chan i3.ClickEvent, c col.Color) {
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

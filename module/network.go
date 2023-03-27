@@ -159,9 +159,9 @@ func (n *Network) print(tx chan []i3.Block, err error, c col.Color) {
 			disconnectedInterfaces++
 			if n.patternRe != nil {
 				continue
-			} else {
-				printColor = c.Red()
 			}
+
+			printColor = c.Red()
 		}
 
 		blocks = append(blocks, i3.Block{

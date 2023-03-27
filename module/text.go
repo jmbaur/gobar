@@ -11,7 +11,7 @@ type Text struct {
 }
 
 // Run implements Module.
-func (t *Text) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
+func (t *Text) Run(tx chan []i3.Block, _ chan i3.ClickEvent, c col.Color) {
 	tx <- []i3.Block{{
 		Name:      "text",
 		Instance:  t.Content,
