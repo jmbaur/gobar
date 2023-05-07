@@ -7,7 +7,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/vishvananda/netlink v1.1.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
-	golang.org/x/sys v0.7.0
+	golang.org/x/sys v0.8.0
 )
 
 require (
