@@ -66,7 +66,7 @@ func (b *Battery) print(tx chan []i3.Block, err error, c col.Color) {
 }
 
 // Run implements Module.
-func (b *Battery) Run(tx chan []i3.Block, _ chan i3.ClickEvent, c col.Color) {
+func (b *Battery) Run(tx chan []i3.Block, rx chan i3.ClickEvent, c col.Color) {
 	if err := filepath.WalkDir("/sys/class/power_supply", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -128,25 +128,32 @@ func (b *Battery) Run(tx chan []i3.Block, _ chan i3.ClickEvent, c col.Color) {
 		ready <- struct{}{}
 	}()
 
-	for range ready {
-		for i, bat := range b.batteries {
-			bat.fd.Seek(0, io.SeekStart)
-			data, err := io.ReadAll(bat.fd)
-			if err != nil {
-				b.print(tx, err, c)
+	for {
+		select {
+		// no click support for battery
+		case <-rx:
+		case <-ready:
+			{
+				for i, bat := range b.batteries {
+					bat.fd.Seek(0, io.SeekStart)
+					data, err := io.ReadAll(bat.fd)
+					if err != nil {
+						b.print(tx, err, c)
+					}
+					capacity, err := strconv.Atoi(string(bytes.TrimSpace(data)))
+					if err != nil {
+						continue
+					}
+					b.batteries[i].capacity = capacity
+				}
+
+				b.print(tx, nil, c)
+
+				go func() {
+					time.Sleep(5 * time.Second)
+					ready <- struct{}{}
+				}()
 			}
-			capacity, err := strconv.Atoi(string(bytes.TrimSpace(data)))
-			if err != nil {
-				continue
-			}
-			b.batteries[i].capacity = capacity
 		}
-
-		b.print(tx, nil, c)
-
-		go func() {
-			time.Sleep(5 * time.Second)
-			ready <- struct{}{}
-		}()
 	}
 }
