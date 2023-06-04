@@ -2,6 +2,7 @@ package module
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,6 +14,8 @@ import (
 	col "github.com/jmbaur/gobar/color"
 	"github.com/jmbaur/gobar/i3"
 )
+
+var errNotBattery = errors.New("not a battery")
 
 // Battery is a module that prints the capacity of batteries. Only works on
 // Linux.
@@ -79,13 +82,24 @@ func (b *Battery) Run(tx chan []i3.Block, _ chan i3.ClickEvent, c col.Color) {
 			return err
 		}
 		defer typeFile.Close()
+
 		typeContents, readErr := io.ReadAll(typeFile)
 		if readErr != nil {
 			return err
 		}
-		if string(bytes.TrimSpace(typeContents)) == "Battery" {
-			b.batteries = append(b.batteries, batteryInfo{name: base})
+
+		// don't include a power_supply that is not classified as a battery
+		if string(bytes.TrimSpace(typeContents)) != "Battery" {
+			return nil
 		}
+
+		// don't include a battery that doesn't have the capacity file
+		if _, err := os.Stat(filepath.Join(path, "capacity")); err != nil {
+			return nil
+		}
+
+		b.batteries = append(b.batteries, batteryInfo{name: base})
+
 		return nil
 	}); err != nil {
 		b.print(tx, err, c)
