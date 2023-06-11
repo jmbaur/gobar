@@ -15,8 +15,6 @@ import (
 	"github.com/jmbaur/gobar/i3"
 )
 
-var errNotBattery = errors.New("not a battery")
-
 // Battery is a module that prints the capacity of batteries. Only works on
 // Linux.
 type Battery struct {
