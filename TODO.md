@@ -1,1 +1,2 @@
+- Remove network module when IPv6 mgmt addr goes away
 - Print the info for the interface with the highest metric
