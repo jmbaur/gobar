@@ -6,7 +6,7 @@ require (
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/vishvananda/netlink v1.1.0
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
+	golang.org/x/exp v0.0.0-20230728194245-b0cb94b80691
 	golang.org/x/sys v0.10.0
 )
 
