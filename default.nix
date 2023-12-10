@@ -3,6 +3,6 @@ buildGoModule {
   pname = "gobar";
   version = "0.1.9";
   src = ./.;
-  vendorHash = "sha256-dnfYF9IpQ01MIYtMjaVKhvkS0V1kfSHbKg39H5MjYK4=";
+  vendorHash = "sha256-QxuC38b24T1F+ARzBinvPP8Lwu+lwnyMviTzffuM2iQ=";
   ldflags = [ "-s" "-w" ];
 }
